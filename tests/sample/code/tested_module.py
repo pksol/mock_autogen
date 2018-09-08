@@ -6,7 +6,6 @@ from tests.sample.code.second_module import my_dir as other_dir
 
 
 def rm_direct(filename):
-    print "paroda"
     os.remove(filename)
 
 

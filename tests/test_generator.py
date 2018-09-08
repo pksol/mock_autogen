@@ -136,6 +136,26 @@ def mocks_collection(mocker):
 
 def test_generate_call_list_rm_direct(mocks_collection):
     tests.sample.code.tested_module.rm_direct('/some/path')
-    for mock in mocks_collection:
-        generated = mock_autogen.generator.generate_call_list(mock)
-        # assert not generated
+    mock_rm_direct = mocks_collection.rm_direct
+    for mocked in mocks_collection:
+        generated = mock_autogen.generator.generate_call_list(mocked)
+        if mocked != mock_rm_direct:
+            assert 'assert 0 == mocked.call_count\n' == generated
+        else:
+            assert 'assert 1 == mocked.call_count\n' \
+                   "mocked.assert_called_once_with('/some/path')" == generated
+        exec generated  # verify the validity of assertions
+
+
+def test_generate_call_list_rm_direct_kwargs(mocks_collection):
+    tests.sample.code.tested_module.rm_direct(filename='/some/path')
+    mock_rm_direct = mocks_collection.rm_direct
+    for mocked in mocks_collection:
+        generated = mock_autogen.generator.generate_call_list(mocked)
+        if mocked != mock_rm_direct:
+            assert 'assert 0 == mocked.call_count\n' == generated
+        else:
+            assert 'assert 1 == mocked.call_count\n' \
+                   "mocked.assert_called_once_with(filename='/some/path')" == \
+                   generated
+        exec generated  # verify the validity of assertions

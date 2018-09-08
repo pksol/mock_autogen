@@ -98,6 +98,7 @@ def generate_call_list(mock_object, mock_name='mocked'):
             generated_asserts += "{0}.assert_called_once_with({1})".format(
                 mock_name, _param_string(args, kwargs))
         else:
+            # todo: add support for multiple function invocation
             for call in mock_object.call_args_list:
                 args, kwargs = call
 
@@ -107,4 +108,12 @@ def generate_call_list(mock_object, mock_name='mocked'):
 
 
 def _param_string(args, kwargs):
-    pass
+    params = ""
+    if args:
+        params += ', '.join(['{!r}'.format(v) for v in args])
+    if kwargs:
+        if params:
+            params += ','
+        params += ', '.join(
+            ['{}={!r}'.format(k, v) for k, v in kwargs.items()])
+    return params
