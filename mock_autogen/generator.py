@@ -101,15 +101,24 @@ def generate_call_list(mock_object, mock_name='mocked'):
         method, args, kwargs = indirect_called
         call_dictionary['.' + method].append(CallParameters(args, kwargs))
 
+    had_multiple_calls = False
     for func_path, call_list in call_dictionary.iteritems():
         if 1 == len(call_list):
             args, kwargs = call_list[0]
             generated_asserts += "{0}.assert_called_once_with({1})\n".format(
                 mock_name + func_path, _param_string(args, kwargs))
         else:
-            # todo: add support for multiple function invocation
+            had_multiple_calls = True
+            generated_asserts += "{0}.assert_has_calls(calls=[".format(
+                mock_name + func_path)
             for call in call_list:
                 args, kwargs = call
+                generated_asserts += "call({0}),".format(
+                    _param_string(args, kwargs))
+            generated_asserts += "])\n"
+
+    if had_multiple_calls:
+        generated_asserts = "from mock import call\n\n" + generated_asserts
 
     # todo ensure __enter__ works
 

@@ -369,4 +369,44 @@ def test_generate_call_list_add_mix_types(mock_functions_only_collection):
             assert 'assert 1 == mocker.call_count\n' \
                    "mocker.assert_called_once_with(" \
                    "'one', 2)\n" == generated
-        # exec generated  # verify the validity of assertions
+        exec generated  # verify the validity of assertions
+
+
+def test_generate_call_list_add_multiple_calls(mock_functions_only_collection):
+    tests.sample.code.tested_module.add(1, 2)
+    tests.sample.code.tested_module.add('one', 'two')
+
+    mock_add = mock_functions_only_collection.add
+    for mocker in mock_functions_only_collection:
+        generated = mock_autogen.generator.generate_call_list(
+            mocker,
+            mock_name="mocker")
+        if mocker != mock_add:
+            assert 'assert 0 == mocker.call_count\n' == generated
+        else:
+            assert 'from mock import call\n\n' \
+                   'assert 2 == mocker.call_count\n' \
+                   "mocker.assert_has_calls(calls=[call(1, 2)," \
+                   "call('one', 'two'),])\n" == generated
+        exec generated  # verify the validity of assertions
+
+
+def test_generate_call_list_are_in_same_folder_indirect_multiple_calls(
+        mock_modules_only_collection):
+    tests.sample.code.tested_module.are_in_same_folder('/some/path/file1.txt',
+                                                       '/some/path/file2.txt')
+
+    mock_os = mock_modules_only_collection.os
+    for mocker in mock_modules_only_collection:
+        generated = mock_autogen.generator.generate_call_list(
+            mocker,
+            mock_name="mocker")
+        if mocker != mock_os:
+            assert 'assert 0 == mocker.call_count\n' == generated
+        else:
+            assert 'from mock import call\n\n' \
+                   'assert 0 == mocker.call_count\n' \
+                   "mocker.path.dirname.assert_has_calls(calls=[" \
+                   "call('/some/path/file1.txt')," \
+                   "call('/some/path/file2.txt'),])\n" == generated
+        exec generated  # verify the validity of assertions
