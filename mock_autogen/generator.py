@@ -1,10 +1,12 @@
+from collections import defaultdict, namedtuple
+
 from aenum import Enum
 import inspect
 
 from mock import MagicMock
 
-MockingFramework = Enum(
-    'MockingFramework', 'PYTEST_MOCK')
+MockingFramework = Enum('MockingFramework', 'PYTEST_MOCK')
+CallParameters = namedtuple('CallParameters', 'args, kwargs')
 
 
 def generate_mocks(mocking_framework, mocked_module, collect_modules=True,
@@ -81,9 +83,6 @@ def generate_call_list(mock_object, mock_name='mocked'):
     #            call(os.path.join(ARCHIVE_DIR,
     #                              const.CONSTRAINT_STREAM_FILENAME),
     #                 const.CONSTRAINT_STREAM_FILENAME)])
-    # mock_zip_dbmanage_cs_logs.zip.ZipFile.return_value.__enter__. \
-    #     return_value.writestr. \
-    #     assert_called_once_with("unitdef.xlsx", EXCEL_DATA)
     if not isinstance(mock_object, MagicMock):
         raise TypeError("Unsupported mocking object: {0}. "
                         "You are welcome to add code to support it :)".
@@ -92,17 +91,27 @@ def generate_call_list(mock_object, mock_name='mocked'):
     generated_asserts = "assert {0} == {1}.call_count\n".format(
         len(mock_object.call_args_list), mock_name)
 
-    if mock_object.call_args_list:
-        if 1 == len(mock_object.call_args_list):
-            args, kwargs = mock_object.call_args_list[0]
-            generated_asserts += "{0}.assert_called_once_with({1})".format(
-                mock_name, _param_string(args, kwargs))
+    call_dictionary = defaultdict(list)
+
+    for direct_called in mock_object.call_args_list:
+        args, kwargs = direct_called
+        call_dictionary[""].append(CallParameters(args, kwargs))
+
+    for indirect_called in mock_object.method_calls:
+        method, args, kwargs = indirect_called
+        call_dictionary['.' + method].append(CallParameters(args, kwargs))
+
+    for func_path, call_list in call_dictionary.iteritems():
+        if 1 == len(call_list):
+            args, kwargs = call_list[0]
+            generated_asserts += "{0}.assert_called_once_with({1})\n".format(
+                mock_name + func_path, _param_string(args, kwargs))
         else:
             # todo: add support for multiple function invocation
-            for call in mock_object.call_args_list:
+            for call in call_list:
                 args, kwargs = call
 
-    # todo: support recursive calls, ensure __enter__ works
+    # todo ensure __enter__ works
 
     return generated_asserts
 
@@ -115,5 +124,5 @@ def _param_string(args, kwargs):
         if params:
             params += ', '
         params += ', '.join(
-            ['{}={!r}'.format(k, v) for k, v in sorted(kwargs.items())])
+            ['{}={!r}'.format(k, v) for k, v in sorted(kwargs.iteritems())])
     return params

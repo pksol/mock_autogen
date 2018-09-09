@@ -25,3 +25,7 @@ def second_dir(obj):
     dir1 = second_module.my_dir(obj)
     dir2 = other_dir(obj)
     return dir1 + dir2
+
+
+def add(one, two):
+    return one + two

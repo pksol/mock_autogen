@@ -1,3 +1,4 @@
+import re
 from collections import namedtuple
 
 import pytest
@@ -15,7 +16,10 @@ MOCKED_MODULES = "mock_os = mocker.MagicMock(name='os')\n" \
                  "second_module', new=mock_second_module)\n"
 
 MOCKED_FUNCTIONS_HEADER = "# mocked functions\n"
-MOCKED_FUNCTIONS = "mock_append_to_cwd = " \
+MOCKED_FUNCTIONS = "mock_add = mocker.MagicMock(name='add')\n" \
+                   "mocker.patch('tests.sample.code.tested_module.add', " \
+                   "new=mock_add)\n" \
+                   "mock_append_to_cwd = " \
                    "mocker.MagicMock(name='append_to_cwd')\n" \
                    "mocker.patch('tests.sample.code.tested_module." \
                    "append_to_cwd', new=mock_append_to_cwd)\n" \
@@ -41,14 +45,15 @@ MOCKED_BUILTIN = "mock_os_remove = mocker.MagicMock(name='os_remove')\n" \
 
 MocksAllCollection = namedtuple('MocksAllCollection',
                                 'os, second_module, append_to_cwd, '
-                                'are_in_same_folder, other_dir, rm_alias, '
-                                'rm_direct, second_dir, os_remove')
+                                'add, are_in_same_folder, other_dir, '
+                                'rm_alias, rm_direct, second_dir, os_remove')
 
 MocksModulesOnlyCollection = namedtuple('MocksModulesOnlyCollection',
                                         'os, second_module')
 
 MocksFunctionsOnlyCollection = namedtuple('MocksFunctionsOnlyCollection',
-                                          'append_to_cwd, are_in_same_folder, '
+                                          'add, append_to_cwd, '
+                                          'are_in_same_folder, '
                                           'other_dir, rm_alias, '
                                           'rm_direct, second_dir')
 
@@ -88,6 +93,8 @@ def mock_functions_only_collection(mocker):
         MocksFunctionsOnlyCollection: The generated mocks.
     """
     # mocked functions
+    mock_add = mocker.MagicMock(name='add')
+    mocker.patch('tests.sample.code.tested_module.add', new=mock_add)
     mock_append_to_cwd = mocker.MagicMock(name='append_to_cwd')
     mocker.patch('tests.sample.code.tested_module.append_to_cwd',
                  new=mock_append_to_cwd)
@@ -106,7 +113,8 @@ def mock_functions_only_collection(mocker):
     mocker.patch('tests.sample.code.tested_module.second_dir',
                  new=mock_second_dir)
 
-    yield MocksFunctionsOnlyCollection(mock_append_to_cwd,
+    yield MocksFunctionsOnlyCollection(mock_add,
+                                       mock_append_to_cwd,
                                        mock_are_in_same_folder,
                                        mock_other_dir,
                                        mock_rm_alias, mock_rm_direct,
@@ -150,6 +158,8 @@ def mock_everything_collection(mocker):
     mocker.patch('tests.sample.code.tested_module.second_module',
                  new=mock_second_module)
     # mocked functions
+    mock_add = mocker.MagicMock(name='add')
+    mocker.patch('tests.sample.code.tested_module.add', new=mock_add)
     mock_append_to_cwd = mocker.MagicMock(name='append_to_cwd')
     mocker.patch('tests.sample.code.tested_module.append_to_cwd',
                  new=mock_append_to_cwd)
@@ -171,7 +181,7 @@ def mock_everything_collection(mocker):
     mocker.patch('tests.sample.code.tested_module.os_remove',
                  new=mock_os_remove)
 
-    yield MocksAllCollection(mock_os, mock_second_module,
+    yield MocksAllCollection(mock_add, mock_os, mock_second_module,
                              mock_append_to_cwd, mock_are_in_same_folder,
                              mock_other_dir,
                              mock_rm_alias, mock_rm_direct, mock_second_dir,
@@ -183,6 +193,7 @@ def test_generate_mocks_modules_only():
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
         tests.sample.code.tested_module, collect_modules=True,
         collect_functions=False, collect_builtin=False)
+
     assert MOCKED_MODULES_HEADER + MOCKED_MODULES == generated_mocks
 
 
@@ -191,6 +202,7 @@ def test_generate_mocks_functions_only():
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
         tests.sample.code.tested_module, collect_modules=False,
         collect_functions=True, collect_builtin=False)
+
     assert MOCKED_FUNCTIONS_HEADER + MOCKED_FUNCTIONS == generated_mocks
 
 
@@ -199,6 +211,7 @@ def test_generate_mocks_builtin_only():
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
         tests.sample.code.tested_module, collect_modules=False,
         collect_functions=False, collect_builtin=True)
+
     assert MOCKED_FUNCTIONS_HEADER + MOCKED_BUILTIN == generated_mocks
 
 
@@ -207,6 +220,7 @@ def test_generate_mocks_all():
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
         tests.sample.code.tested_module, collect_modules=True,
         collect_functions=True, collect_builtin=True)
+
     assert MOCKED_MODULES_HEADER + MOCKED_MODULES + \
            MOCKED_FUNCTIONS_HEADER + MOCKED_FUNCTIONS + MOCKED_BUILTIN == \
            generated_mocks
@@ -216,6 +230,7 @@ def test_generate_mocks_default():
     generated_mocks = mock_autogen.generator.generate_mocks(
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
         tests.sample.code.tested_module)
+
     assert MOCKED_MODULES_HEADER + MOCKED_MODULES + \
            MOCKED_FUNCTIONS_HEADER + MOCKED_BUILTIN == generated_mocks
 
@@ -224,6 +239,7 @@ def test_generate_call_list_are_in_same_folder_args(
         mock_everything_collection):
     tests.sample.code.tested_module.are_in_same_folder('/some/path/file1.txt',
                                                        '/some/path/file2.txt')
+
     mock_are_in_same_folder = mock_everything_collection.are_in_same_folder
     for mocked in mock_everything_collection:
         generated = mock_autogen.generator.generate_call_list(mocked)
@@ -232,7 +248,7 @@ def test_generate_call_list_are_in_same_folder_args(
         else:
             assert 'assert 1 == mocked.call_count\n' \
                    "mocked.assert_called_once_with('/some/path/file1.txt', " \
-                   "'/some/path/file2.txt')" == generated
+                   "'/some/path/file2.txt')\n" == generated
         exec generated  # verify the validity of assertions
 
 
@@ -240,6 +256,7 @@ def test_generate_call_list_rm_direct_kwargs(mock_functions_only_collection):
     tests.sample.code.tested_module.are_in_same_folder(
         path1='/some/path/file1.txt',
         path2='/some/path/file2.txt')
+
     mock_are_in_same_folder = mock_functions_only_collection.are_in_same_folder
     for mocker in mock_functions_only_collection:
         generated = mock_autogen.generator.generate_call_list(
@@ -251,7 +268,7 @@ def test_generate_call_list_rm_direct_kwargs(mock_functions_only_collection):
             assert 'assert 1 == mocker.call_count\n' \
                    "mocker.assert_called_once_with(" \
                    "path1='/some/path/file1.txt', " \
-                   "path2='/some/path/file2.txt')" == generated
+                   "path2='/some/path/file2.txt')\n" == generated
         exec generated  # verify the validity of assertions
 
 
@@ -260,6 +277,7 @@ def test_generate_call_list_rm_direct_mix_args_kwargs(
     tests.sample.code.tested_module.are_in_same_folder(
         '/some/path/file1.txt',
         path2='/some/path/file2.txt')
+
     mock_are_in_same_folder = mock_everything_collection.are_in_same_folder
     for mocked in mock_everything_collection:
         generated = mock_autogen.generator.generate_call_list(mocked)
@@ -269,13 +287,14 @@ def test_generate_call_list_rm_direct_mix_args_kwargs(
             assert 'assert 1 == mocked.call_count\n' \
                    "mocked.assert_called_once_with(" \
                    "'/some/path/file1.txt', " \
-                   "path2='/some/path/file2.txt')" == generated
+                   "path2='/some/path/file2.txt')\n" == generated
         exec generated  # verify the validity of assertions
 
 
 def test_generate_call_list_rm_alias_builtin_only(
         mock_builtin_only_collection):
     tests.sample.code.tested_module.rm_alias('/some/path/file1.txt')
+
     mock_os_remove = mock_builtin_only_collection.os_remove
     for mocked in mock_builtin_only_collection:
         generated = mock_autogen.generator.generate_call_list(mocked)
@@ -283,6 +302,71 @@ def test_generate_call_list_rm_alias_builtin_only(
             assert 'assert 0 == mocked.call_count\n' == generated
         else:
             assert 'assert 1 == mocked.call_count\n' \
-                   "mocked.assert_called_once_with('/some/path/file1.txt')" \
+                   "mocked.assert_called_once_with('/some/path/file1.txt')\n" \
                    == generated
         exec generated  # verify the validity of assertions
+
+
+def test_generate_call_list_append_to_cwd_builtin_only(
+        mock_modules_only_collection):
+    tests.sample.code.tested_module.append_to_cwd('/some/path/file1.txt')
+
+    mock_os = mock_modules_only_collection.os
+    for mocked in mock_modules_only_collection:
+        generated = mock_autogen.generator.generate_call_list(mocked)
+        if mocked != mock_os:
+            assert 'assert 0 == mocked.call_count\n' == generated
+            exec generated  # verify the validity of assertions
+        else:
+            assert re.match(r'^assert 0 == mocked.call_count\n' \
+                            r"mocked.path.join.assert_called_once_with"
+                            r"\(<MagicMock name='os.getcwd\(\)' id='\d+'>, "
+                            r"'/some/path/file1.txt'\)\n" \
+                            r"mocked.getcwd.assert_called_once_with\(\)\n$",
+                            generated)
+
+            # added ANY to match the mock parameter
+            from mock import ANY
+            assert 0 == mocked.call_count
+            mocked.path.join.assert_called_once_with(ANY,
+                                                     '/some/path/file1.txt')
+            mocked.getcwd.assert_called_once_with()
+
+
+def test_generate_call_list_append_to_cwd_builtin_only_mocked_cwd(
+        mock_modules_only_collection):
+    mock_os = mock_modules_only_collection.os
+
+    # added this so the assert can be affective.
+    # this is an example of the code the user has to add on top of the utility
+    mock_os.getcwd.return_value = '/some/pwd'
+
+    tests.sample.code.tested_module.append_to_cwd('/some/path/file1.txt')
+
+    for mocked in mock_modules_only_collection:
+        generated = mock_autogen.generator.generate_call_list(mocked)
+        if mocked != mock_os:
+            assert 'assert 0 == mocked.call_count\n' == generated
+        else:
+            assert 'assert 0 == mocked.call_count\n' \
+                   "mocked.path.join.assert_called_once_with" \
+                   "('/some/pwd', '/some/path/file1.txt')\n" \
+                   "mocked.getcwd.assert_called_once_with()\n" == generated
+            exec generated  # verify the validity of assertions
+
+
+def test_generate_call_list_add_mix_types(mock_functions_only_collection):
+    tests.sample.code.tested_module.add('one', 2)
+
+    mock_add = mock_functions_only_collection.add
+    for mocker in mock_functions_only_collection:
+        generated = mock_autogen.generator.generate_call_list(
+            mocker,
+            mock_name="mocker")
+        if mocker != mock_add:
+            assert 'assert 0 == mocker.call_count\n' == generated
+        else:
+            assert 'assert 1 == mocker.call_count\n' \
+                   "mocker.assert_called_once_with(" \
+                   "'one', 2)\n" == generated
+        # exec generated  # verify the validity of assertions
