@@ -241,13 +241,15 @@ def test_generate_call_list_rm_direct_kwargs(mock_functions_only_collection):
         path1='/some/path/file1.txt',
         path2='/some/path/file2.txt')
     mock_are_in_same_folder = mock_functions_only_collection.are_in_same_folder
-    for mocked in mock_functions_only_collection:
-        generated = mock_autogen.generator.generate_call_list(mocked)
-        if mocked != mock_are_in_same_folder:
-            assert 'assert 0 == mocked.call_count\n' == generated
+    for mocker in mock_functions_only_collection:
+        generated = mock_autogen.generator.generate_call_list(
+            mocker,
+            mock_name="mocker")
+        if mocker != mock_are_in_same_folder:
+            assert 'assert 0 == mocker.call_count\n' == generated
         else:
-            assert 'assert 1 == mocked.call_count\n' \
-                   "mocked.assert_called_once_with(" \
+            assert 'assert 1 == mocker.call_count\n' \
+                   "mocker.assert_called_once_with(" \
                    "path1='/some/path/file1.txt', " \
                    "path2='/some/path/file2.txt')" == generated
         exec generated  # verify the validity of assertions
