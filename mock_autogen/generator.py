@@ -113,7 +113,7 @@ def _param_string(args, kwargs):
         params += ', '.join(['{!r}'.format(v) for v in args])
     if kwargs:
         if params:
-            params += ','
+            params += ', '
         params += ', '.join(
-            ['{}={!r}'.format(k, v) for k, v in kwargs.items()])
+            ['{}={!r}'.format(k, v) for k, v in sorted(kwargs.items())])
     return params
