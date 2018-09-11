@@ -4,6 +4,8 @@ from os import remove as os_remove
 from tests.sample.code import second_module
 from tests.sample.code.second_module import my_dir as other_dir
 
+import zipfile
+
 
 def rm_direct(filename):
     os.remove(filename)
@@ -29,3 +31,9 @@ def second_dir(obj):
 
 def add(one, two):
     return one + two
+
+
+def process_and_zip(zip_path, file_name, contents):
+    processed_contents = "processed " + contents  # some complex logic
+    with zipfile.ZipFile(zip_path, 'w') as zip_container:
+        zip_container.writestr(file_name, processed_contents)

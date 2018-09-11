@@ -1,4 +1,4 @@
-from collections import defaultdict, namedtuple
+from collections import namedtuple, OrderedDict
 
 from aenum import Enum
 import inspect
@@ -9,8 +9,8 @@ MockingFramework = Enum('MockingFramework', 'PYTEST_MOCK')
 CallParameters = namedtuple('CallParameters', 'args, kwargs')
 
 
-def generate_mocks(mocking_framework, mocked_module, collect_modules=True,
-                   collect_functions=False, collect_builtin=True):
+def generate_mocks(mocking_framework, mocked_module, mock_modules=True,
+                   mock_functions=False, mock_builtin=True):
     """
     Generates the list of mocks in order to mock the dependant modules and the
     functions of the given module.
@@ -22,27 +22,26 @@ def generate_mocks(mocking_framework, mocked_module, collect_modules=True,
         mocking_framework (MockingFramework): the type of the mocking
             framework to use
         mocked_module (types.ModuleType): the module to mock
-        collect_modules (bool): whether to mock dependant modules which are
+        mock_modules (bool): whether to mock dependant modules which are
             referenced from the mocked module
-        collect_functions (bool): whether to mock functions defined in the
+        mock_functions (bool): whether to mock functions defined in the module
+        mock_builtin (bool): whether to mock builtin functions defined in the
             module
-        collect_builtin (bool): whether to mock builtin functions defined in
-            the module
 
     Returns:
         str: the code to put in your test to mock the desired behaviour.
     """
     modules = []
-    if collect_modules:
+    if mock_modules:
         modules.extend(sorted([t[0] for t in
                                inspect.getmembers(mocked_module,
                                                   inspect.ismodule)]))
     functions = []
-    if collect_functions:
+    if mock_functions:
         functions.extend(sorted([t[0] for t in
                                  inspect.getmembers(mocked_module,
                                                     inspect.isfunction)]))
-    if collect_builtin:
+    if mock_builtin:
         functions.extend(sorted([t[0] for t in
                                  inspect.getmembers(
                                      mocked_module, inspect.isbuiltin)]))
@@ -76,39 +75,35 @@ def _single_pytest_mock_entry(mocked_module, entry):
 
 
 def generate_call_list(mock_object, mock_name='mocked'):
-    # mock_zip_dbmanage_cs_logs.zip.ZipFile.return_value.__enter__. \
-    #     return_value.write. \
-    #     assert_has_calls(
-    #     calls=[call(archive_path, archive_name),
-    #            call(os.path.join(ARCHIVE_DIR,
-    #                              const.CONSTRAINT_STREAM_FILENAME),
-    #                 const.CONSTRAINT_STREAM_FILENAME)])
     if not isinstance(mock_object, MagicMock):
         raise TypeError("Unsupported mocking object: {0}. "
                         "You are welcome to add code to support it :)".
                         format(type(mock_object)))
 
-    generated_asserts = "assert {0} == {1}.call_count\n".format(
-        len(mock_object.call_args_list), mock_name)
+    generated_asserts = ""
+    if mock_object.call_args_list:
+        generated_asserts += "assert {0} == {1}.call_count\n".format(
+            len(mock_object.call_args_list), mock_name)
 
-    call_dictionary = defaultdict(list)
+    call_dictionary = OrderedDict()
 
-    for direct_called in mock_object.call_args_list:
-        args, kwargs = direct_called
-        call_dictionary[""].append(CallParameters(args, kwargs))
+    for all_calls in mock_object.mock_calls:
+        method, args, kwargs = all_calls
+        if method:
+            method = "." + method
+        method = method.replace("()", ".return_value")
+        if method not in call_dictionary:
+            call_dictionary[method] = []
+        call_dictionary[method].append(CallParameters(args, kwargs))
 
-    for indirect_called in mock_object.method_calls:
-        method, args, kwargs = indirect_called
-        call_dictionary['.' + method].append(CallParameters(args, kwargs))
-
-    had_multiple_calls = False
+    had_multiple_calls_for_single_method = False
     for func_path, call_list in call_dictionary.iteritems():
         if 1 == len(call_list):
             args, kwargs = call_list[0]
             generated_asserts += "{0}.assert_called_once_with({1})\n".format(
                 mock_name + func_path, _param_string(args, kwargs))
         else:
-            had_multiple_calls = True
+            had_multiple_calls_for_single_method = True
             generated_asserts += "{0}.assert_has_calls(calls=[".format(
                 mock_name + func_path)
             for call in call_list:
@@ -117,10 +112,8 @@ def generate_call_list(mock_object, mock_name='mocked'):
                     _param_string(args, kwargs))
             generated_asserts += "])\n"
 
-    if had_multiple_calls:
+    if had_multiple_calls_for_single_method:
         generated_asserts = "from mock import call\n\n" + generated_asserts
-
-    # todo ensure __enter__ works
 
     return generated_asserts
 
