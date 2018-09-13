@@ -37,6 +37,7 @@ modules):
 
 ```python
 import os_wrapper
+import mock_autogen
 
 generated_mocks = mock_autogen.generator.generate_mocks(
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
@@ -54,6 +55,7 @@ Simply copy the code and place it in your test.
 After the previous step, your test function can look like this:
 ```python
 import os_wrapper
+import mock_autogen
 
 # your test function
 def test_os_remove_wrap(mocker):
