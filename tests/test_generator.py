@@ -82,6 +82,7 @@ class MockedFirstClass(object):
 
     def __new__(cls, *args, **kwargs):
         MockedFirstClass.instances.append(mocker.MagicMock(spec=MockedFirstClass.original_cls))
+        MockedFirstClass.instances[-1].__class__ = MockedFirstClass
         return MockedFirstClass.instances[-1]
 
 mocker.patch('tests.sample.code.tested_module.FirstClass', new=MockedFirstClass)
@@ -99,6 +100,7 @@ class MockedSecondClass(object):
 
     def __new__(cls, *args, **kwargs):
         MockedSecondClass.instances.append(mocker.MagicMock(spec=MockedSecondClass.original_cls))
+        MockedSecondClass.instances[-1].__class__ = MockedSecondClass
         return MockedSecondClass.instances[-1]
 
 mocker.patch('tests.sample.code.tested_module.SecondClass', new=MockedSecondClass)
@@ -512,6 +514,7 @@ def test_generate_call_list_class_static(mocker):
         def __new__(cls, *args, **kwargs):
             MockedSecondClass.instances.append(mocker.MagicMock(
                 spec=MockedSecondClass.original_cls))
+            MockedSecondClass.instances[-1].__class__ = MockedSecondClass
             return MockedSecondClass.instances[-1]
 
     mocker.patch('tests.sample.code.tested_module.SecondClass',
@@ -534,3 +537,35 @@ def test_generate_call_list_class_static(mocker):
         mock_name="MockedSecondClass.instances[0]")
     assert 'MockedSecondClass.instances[0].not_implemented.' \
            'assert_called_once_with()\n' == generated_instance
+
+
+def test_class_static_objects_behave_the_same(mocker):
+    # mocked classes
+    class MockedSecondClassMeta(type):
+        static_instance = mocker.MagicMock(
+            spec=tests.sample.code.tested_module.SecondClass)
+
+        def __getattr__(cls, key):
+            return MockedSecondClassMeta.static_instance.__getattr__(key)
+
+    class MockedSecondClass(object):
+        __metaclass__ = MockedSecondClassMeta
+        original_cls = tests.sample.code.tested_module.SecondClass
+        instances = []
+
+        def __new__(cls, *args, **kwargs):
+            MockedSecondClass.instances.append(mocker.MagicMock(
+                spec=MockedSecondClass.original_cls))
+            MockedSecondClass.instances[-1].__class__ = MockedSecondClass
+            return MockedSecondClass.instances[-1]
+
+    mocker.patch('tests.sample.code.tested_module.SecondClass',
+                 new=MockedSecondClass)
+
+    first = tests.sample.code.tested_module.SecondClass('20')
+    first.not_implemented()
+
+    with pytest.raises(AttributeError):
+        first.unknown_method()
+
+    assert isinstance(first, tests.sample.code.tested_module.SecondClass)

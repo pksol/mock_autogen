@@ -120,6 +120,7 @@ class Mocked{0}(object):
 
     def __new__(cls, *args, **kwargs):
         Mocked{0}.instances.append(mocker.MagicMock(spec=Mocked{0}.original_cls))
+        Mocked{0}.instances[-1].__class__ = Mocked{0}
         return Mocked{0}.instances[-1]
 
 mocker.patch('{1}.{0}', new=Mocked{0})
