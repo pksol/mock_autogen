@@ -45,10 +45,64 @@ MOCKED_FUNCTIONS = "mock_add = mocker.MagicMock(name='add')\n" \
                    "rm_direct', new=mock_rm_direct)\n" \
                    "mock_second_dir = mocker.MagicMock(name='second_dir')\n" \
                    "mocker.patch('tests.sample.code.tested_module." \
-                   "second_dir', new=mock_second_dir)\n"
+                   "second_dir', new=mock_second_dir)\n" \
+                   "mock_use_first_class = mocker.MagicMock(" \
+                   "name='use_first_class')\n" \
+                   "mocker.patch('tests.sample.code.tested_module." \
+                   "use_first_class', new=mock_use_first_class)\n" \
+                   "mock_use_second_class_static = mocker.MagicMock(" \
+                   "name='use_second_class_static')\n" \
+                   "mocker.patch('tests.sample.code.tested_module." \
+                   "use_second_class_static', " \
+                   "new=mock_use_second_class_static)\n"
 MOCKED_BUILTIN = "mock_os_remove = mocker.MagicMock(name='os_remove')\n" \
                  "mocker.patch('tests.sample.code.tested_module.os_remove', " \
                  "new=mock_os_remove)\n"
+
+MOCKED_CLASSES_HEADER = "# mocked classes\n"
+MOCKED_CLASSES = "mock_FirstClass = mocker.MagicMock(name='FirstClass', " \
+                 "spec=tests.sample.code.tested_module.FirstClass)\n" \
+                 "mocker.patch('tests.sample.code.tested_module.FirstClass'," \
+                 " new=mock_FirstClass)\n" \
+                 "mock_SecondClass = mocker.MagicMock(name='SecondClass', " \
+                 "spec=tests.sample.code.tested_module.SecondClass)\n" \
+                 "mocker.patch('tests.sample.code.tested_module.SecondClass'" \
+                 ", new=mock_SecondClass)\n"
+MOCKED_CLASSES_STATIC = """
+class MockedFirstClassMeta(type):
+    static_instance = mocker.MagicMock(spec=tests.sample.code.tested_module.FirstClass)
+
+    def __getattr__(cls, key):
+        return MockedFirstClassMeta.static_instance.__getattr__(key)
+
+class MockedFirstClass(object):
+    __metaclass__ = MockedFirstClassMeta
+    original_cls = tests.sample.code.tested_module.FirstClass
+    instances = []
+
+    def __new__(cls, *args, **kwargs):
+        MockedFirstClass.instances.append(mocker.MagicMock(spec=MockedFirstClass.original_cls))
+        return MockedFirstClass.instances[-1]
+
+mocker.patch('tests.sample.code.tested_module.FirstClass', new=MockedFirstClass)
+
+class MockedSecondClassMeta(type):
+    static_instance = mocker.MagicMock(spec=tests.sample.code.tested_module.SecondClass)
+
+    def __getattr__(cls, key):
+        return MockedSecondClassMeta.static_instance.__getattr__(key)
+
+class MockedSecondClass(object):
+    __metaclass__ = MockedSecondClassMeta
+    original_cls = tests.sample.code.tested_module.SecondClass
+    instances = []
+
+    def __new__(cls, *args, **kwargs):
+        MockedSecondClass.instances.append(mocker.MagicMock(spec=MockedSecondClass.original_cls))
+        return MockedSecondClass.instances[-1]
+
+mocker.patch('tests.sample.code.tested_module.SecondClass', new=MockedSecondClass)
+"""
 
 MocksAllCollection = namedtuple('MocksAllCollection',
                                 'os, second_module, add, append_to_cwd, '
@@ -228,14 +282,36 @@ def test_generate_mocks_builtin_only():
     assert MOCKED_FUNCTIONS_HEADER + MOCKED_BUILTIN == generated_mocks
 
 
+def test_generate_mocks_classes_only():
+    generated_mocks = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        tests.sample.code.tested_module, mock_modules=False,
+        mock_functions=False, mock_builtin=False, mock_classes=True,
+        mock_classes_static=False)
+
+    assert MOCKED_CLASSES_HEADER + MOCKED_CLASSES == generated_mocks
+
+
+def test_generate_mocks_classes_static_only():
+    generated_mocks = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        tests.sample.code.tested_module, mock_modules=False,
+        mock_functions=False, mock_builtin=False, mock_classes=True,
+        mock_classes_static=True)
+
+    assert MOCKED_CLASSES_HEADER + MOCKED_CLASSES_STATIC == generated_mocks
+
+
 def test_generate_mocks_all():
     generated_mocks = mock_autogen.generator.generate_mocks(
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
         tests.sample.code.tested_module, mock_modules=True,
-        mock_functions=True, mock_builtin=True)
+        mock_functions=True, mock_builtin=True, mock_classes=True,
+        mock_classes_static=False)
 
     assert MOCKED_MODULES_HEADER + MOCKED_MODULES + \
-           MOCKED_FUNCTIONS_HEADER + MOCKED_FUNCTIONS + MOCKED_BUILTIN == \
+           MOCKED_FUNCTIONS_HEADER + MOCKED_FUNCTIONS + MOCKED_BUILTIN + \
+           MOCKED_CLASSES_HEADER + MOCKED_CLASSES == \
            generated_mocks
 
 
@@ -397,3 +473,64 @@ def test_generate_call_list_context_manager(mock_modules_only_collection):
            "mock_zipfile.ZipFile.return_value.__exit__." \
            "assert_called_once_with(None, None, None)\n" == generated
     exec generated  # verify the validity of assertions
+
+
+def test_generate_call_list_class(mocker):
+    # mocked classes
+    mock_FirstClass = mocker.MagicMock(
+        name='FirstClass',
+        spec=tests.sample.code.tested_module.FirstClass)
+    mocker.patch('tests.sample.code.tested_module.FirstClass',
+                 new=mock_FirstClass)
+
+    tests.sample.code.tested_module.use_first_class('20')
+
+    generated = mock_autogen.generator.generate_call_list(
+        mock_FirstClass,
+        mock_name="mock_FirstClass")
+    assert "assert 1 == mock_FirstClass.call_count\n" \
+           "mock_FirstClass.assert_called_once_with('20')\n" \
+           "mock_FirstClass.return_value.not_implemented." \
+           "assert_called_once_with()\n" == generated
+    exec generated  # verify the validity of assertions
+
+
+def test_generate_call_list_class_static(mocker):
+    # mocked classes
+    class MockedSecondClassMeta(type):
+        static_instance = mocker.MagicMock(
+            spec=tests.sample.code.tested_module.SecondClass)
+
+        def __getattr__(cls, key):
+            return MockedSecondClassMeta.static_instance.__getattr__(key)
+
+    class MockedSecondClass(object):
+        __metaclass__ = MockedSecondClassMeta
+        original_cls = tests.sample.code.tested_module.SecondClass
+        instances = []
+
+        def __new__(cls, *args, **kwargs):
+            MockedSecondClass.instances.append(mocker.MagicMock(
+                spec=MockedSecondClass.original_cls))
+            return MockedSecondClass.instances[-1]
+
+    mocker.patch('tests.sample.code.tested_module.SecondClass',
+                 new=MockedSecondClass)
+
+    tests.sample.code.tested_module.use_second_class_static('20')
+
+    assert 1 == len(MockedSecondClass.instances)
+
+    generated_static = mock_autogen.generator.generate_call_list(
+        MockedSecondClassMeta.static_instance,
+        mock_name="MockedSecondClassMeta.static_instance")
+    assert re.match(r"^MockedSecondClassMeta.static_instance.prop.__eq__."
+                    r"assert_called_once_with\(<MagicMock "
+                    r"name='mock.prop' id='\d+'>\)\n$",
+                    generated_static)
+
+    generated_instance = mock_autogen.generator.generate_call_list(
+        MockedSecondClass.instances[0],
+        mock_name="MockedSecondClass.instances[0]")
+    assert 'MockedSecondClass.instances[0].not_implemented.' \
+           'assert_called_once_with()\n' == generated_instance

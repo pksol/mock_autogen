@@ -10,7 +10,8 @@ CallParameters = namedtuple('CallParameters', 'args, kwargs')
 
 
 def generate_mocks(mocking_framework, mocked_module, mock_modules=True,
-                   mock_functions=False, mock_builtin=True):
+                   mock_functions=False, mock_builtin=True,
+                   mock_classes=False, mock_classes_static=False):
     """
     Generates the list of mocks in order to mock the dependant modules and the
     functions of the given module.
@@ -27,6 +28,11 @@ def generate_mocks(mocking_framework, mocked_module, mock_modules=True,
         mock_functions (bool): whether to mock functions defined in the module
         mock_builtin (bool): whether to mock builtin functions defined in the
             module
+        mock_classes (bool): whether to mock classes defined in the module
+        mock_classes_static (bool): whether to mock the static functions of the
+            classes defined in the module. This is important if the tested code
+            uses isinstance of accesses class functions directly. Used only if
+            mock_classes is `true`
 
     Returns:
         str: the code to put in your test to mock the desired behaviour.
@@ -46,32 +52,78 @@ def generate_mocks(mocking_framework, mocked_module, mock_modules=True,
                                  inspect.getmembers(
                                      mocked_module, inspect.isbuiltin)]))
 
+    classes = []
+    if mock_classes:
+        classes.extend(sorted([t[0] for t in
+                               inspect.getmembers(mocked_module,
+                                                  inspect.isclass) if
+                               t[1].__module__ == mocked_module.__name__]))
+
     if MockingFramework.PYTEST_MOCK == mocking_framework:
-        return _pytest_mock_generate(mocked_module, modules, functions)
+        return _pytest_mock_generate(mocked_module.__name__, modules,
+                                     functions,
+                                     classes, mock_classes_static)
     else:
         raise ValueError("Unsupported mocking framework: {0}. "
                          "You are welcome to add code to support it :)".
                          format(mocking_framework))
 
 
-def _pytest_mock_generate(mocked_module, modules, functions):
+def _pytest_mock_generate(mocked_module_name, modules, functions, classes,
+                          mock_classes_static):
     generated = ""
     if modules:
         generated += "# mocked modules\n"
         for module in modules:
-            generated += _single_pytest_mock_entry(mocked_module, module)
+            generated += _single_pytest_mock_entry(mocked_module_name, module)
     if functions:
         generated += "# mocked functions\n"
         for func in functions:
-            generated += _single_pytest_mock_entry(mocked_module, func)
+            generated += _single_pytest_mock_entry(mocked_module_name, func)
+    if classes:
+        generated += "# mocked classes\n"
+        for cls in classes:
+            generated += _mock_class_static(cls, mocked_module_name) if \
+                mock_classes_static else \
+                _single_pytest_mock_entry_with_spec(
+                    mocked_module_name,
+                    cls,
+                    mocked_module_name + "." + cls)
 
     return generated
 
 
-def _single_pytest_mock_entry(mocked_module, entry):
-    return ("mock_{0} = mocker.MagicMock(name='{0}')\n" + \
+def _single_pytest_mock_entry(mocked_module_name, entry):
+    return ("mock_{0} = mocker.MagicMock(name='{0}')\n"
             "mocker.patch('{1}.{0}', new=mock_{0})\n"). \
-        format(entry, mocked_module.__name__)
+        format(entry, mocked_module_name)
+
+
+def _single_pytest_mock_entry_with_spec(mocked_module_name, entry, spec):
+    return ("mock_{0} = mocker.MagicMock(name='{0}', spec={2})\n"
+            "mocker.patch('{1}.{0}', new=mock_{0})\n"). \
+        format(entry, mocked_module_name, spec)
+
+
+def _mock_class_static(class_name, mocked_module_name):
+    return ("""
+class Mocked{0}Meta(type):
+    static_instance = mocker.MagicMock(spec={1}.{0})
+
+    def __getattr__(cls, key):
+        return Mocked{0}Meta.static_instance.__getattr__(key)
+
+class Mocked{0}(object):
+    __metaclass__ = Mocked{0}Meta
+    original_cls = {1}.{0}
+    instances = []
+
+    def __new__(cls, *args, **kwargs):
+        Mocked{0}.instances.append(mocker.MagicMock(spec=Mocked{0}.original_cls))
+        return Mocked{0}.instances[-1]
+
+mocker.patch('{1}.{0}', new=Mocked{0})
+""").format(class_name, mocked_module_name)
 
 
 def generate_call_list(mock_object, mock_name='mocked'):
@@ -89,9 +141,9 @@ def generate_call_list(mock_object, mock_name='mocked'):
 
     for all_calls in mock_object.mock_calls:
         method, args, kwargs = all_calls
-        if method:
-            method = "." + method
         method = method.replace("()", ".return_value")
+        if method and not method.startswith("."):
+            method = "." + method
         if method not in call_dictionary:
             call_dictionary[method] = []
         call_dictionary[method].append(CallParameters(args, kwargs))

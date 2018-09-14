@@ -37,3 +37,33 @@ def process_and_zip(zip_path, file_name, contents):
     processed_contents = "processed " + contents  # some complex logic
     with zipfile.ZipFile(zip_path, 'w') as zip_container:
         zip_container.writestr(file_name, processed_contents)
+
+
+class FirstClass(object):
+    prop = 1
+
+    def __init__(self, prop):
+        self.prop = prop
+
+    def not_implemented(self):
+        raise NotImplementedError()
+
+
+class SecondClass(object):
+    prop = 2
+
+    def __init__(self, prop):
+        self.prop = prop
+
+    def not_implemented(self):
+        raise NotImplementedError()
+
+
+def use_first_class(prop):
+    FirstClass(prop).not_implemented()
+
+
+def use_second_class_static(prop):
+    instance = SecondClass(prop)
+    instance.not_implemented()
+    return SecondClass.prop == instance.prop
