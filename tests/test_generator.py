@@ -30,6 +30,10 @@ MOCKED_FUNCTIONS = "mock_add = mocker.MagicMock(name='add')\n" \
                    "mocker.MagicMock(name='are_in_same_folder')\n" \
                    "mocker.patch('tests.sample.code.tested_module." \
                    "are_in_same_folder', new=mock_are_in_same_folder)\n" \
+                   "mock_get_current_time = mocker.MagicMock" \
+                   "(name='get_current_time')\n" \
+                   "mocker.patch('tests.sample.code.tested_module." \
+                   "get_current_time', new=mock_get_current_time)\n" \
                    "mock_other_dir = mocker.MagicMock(name='other_dir')\n" \
                    "mocker.patch('tests.sample.code.tested_module." \
                    "other_dir', new=mock_other_dir)\n" \
@@ -68,6 +72,10 @@ MOCKED_CLASSES = "mock_FirstClass = mocker.MagicMock(name='FirstClass', " \
                  "spec=tests.sample.code.tested_module.SecondClass)\n" \
                  "mocker.patch('tests.sample.code.tested_module.SecondClass'" \
                  ", new=mock_SecondClass)\n"
+MOCKED_REFERENCED_CLASSES = "mock_dt = mocker.MagicMock(name='dt', " \
+                            "spec=tests.sample.code.tested_module.dt)\n" \
+                            "mocker.patch('tests.sample.code.tested_module." \
+                            "dt', new=mock_dt)\n"
 MOCKED_CLASSES_STATIC = """
 class MockedFirstClassMeta(type):
     static_instance = mocker.MagicMock(spec=tests.sample.code.tested_module.FirstClass)
@@ -104,6 +112,24 @@ class MockedSecondClass(object):
         return MockedSecondClass.instances[-1]
 
 mocker.patch('tests.sample.code.tested_module.SecondClass', new=MockedSecondClass)
+
+class MockeddtMeta(type):
+    static_instance = mocker.MagicMock(spec=tests.sample.code.tested_module.dt)
+
+    def __getattr__(cls, key):
+        return MockeddtMeta.static_instance.__getattr__(key)
+
+class Mockeddt(object):
+    __metaclass__ = MockeddtMeta
+    original_cls = tests.sample.code.tested_module.dt
+    instances = []
+
+    def __new__(cls, *args, **kwargs):
+        Mockeddt.instances.append(mocker.MagicMock(spec=Mockeddt.original_cls))
+        Mockeddt.instances[-1].__class__ = Mockeddt
+        return Mockeddt.instances[-1]
+
+mocker.patch('tests.sample.code.tested_module.dt', new=Mockeddt)
 """
 
 MocksAllCollection = namedtuple('MocksAllCollection',
@@ -114,6 +140,9 @@ MocksAllCollection = namedtuple('MocksAllCollection',
 MocksModulesOnlyCollection = namedtuple('MocksModulesOnlyCollection',
                                         'os, second_module, zipfile')
 
+MocksClassesOnlyCollection = namedtuple('MocksClassesOnlyCollection',
+                                        'first, second, datetime')
+
 MocksFunctionsOnlyCollection = namedtuple('MocksFunctionsOnlyCollection',
                                           'add, append_to_cwd, '
                                           'are_in_same_folder, '
@@ -121,6 +150,36 @@ MocksFunctionsOnlyCollection = namedtuple('MocksFunctionsOnlyCollection',
                                           'rm_direct, second_dir')
 
 MocksBuiltinOnlyCollection = namedtuple('MocksAllCollection', 'os_remove')
+
+
+@pytest.fixture
+def mock_classes_only_collection(mocker):
+    """
+        The mocks are taken from `test_generate_mocks_modules_only` :)
+    
+        Args:
+            mocker (pytest.fixture): the mocker fixture
+    
+        Yields:
+            MocksClassesOnlyCollection: The generated mocks.
+        """
+    # mocked classes
+    mock_FirstClass = mocker.MagicMock(
+        name='FirstClass',
+        spec=tests.sample.code.tested_module.FirstClass)
+    mocker.patch('tests.sample.code.tested_module.FirstClass',
+                 new=mock_FirstClass)
+    mock_SecondClass = mocker.MagicMock(
+        name='SecondClass',
+        spec=tests.sample.code.tested_module.SecondClass)
+    mocker.patch('tests.sample.code.tested_module.SecondClass',
+                 new=mock_SecondClass)
+    mock_dt = mocker.MagicMock(name='dt',
+                               spec=tests.sample.code.tested_module.dt)
+    mocker.patch('tests.sample.code.tested_module.dt', new=mock_dt)
+
+    yield MocksClassesOnlyCollection(mock_FirstClass, mock_SecondClass,
+                                     mock_dt)
 
 
 @pytest.fixture
@@ -261,7 +320,8 @@ def test_generate_mocks_modules_only():
     generated_mocks = mock_autogen.generator.generate_mocks(
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
         tests.sample.code.tested_module, mock_modules=True,
-        mock_functions=False, mock_builtin=False)
+        mock_functions=False, mock_builtin=False, mock_classes=False,
+        mock_referenced_classes=False, mock_classes_static=False)
 
     assert MOCKED_MODULES_HEADER + MOCKED_MODULES == generated_mocks
 
@@ -270,7 +330,8 @@ def test_generate_mocks_functions_only():
     generated_mocks = mock_autogen.generator.generate_mocks(
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
         tests.sample.code.tested_module, mock_modules=False,
-        mock_functions=True, mock_builtin=False)
+        mock_functions=True, mock_builtin=False, mock_classes=False,
+        mock_referenced_classes=False, mock_classes_static=False)
 
     assert MOCKED_FUNCTIONS_HEADER + MOCKED_FUNCTIONS == generated_mocks
 
@@ -279,7 +340,8 @@ def test_generate_mocks_builtin_only():
     generated_mocks = mock_autogen.generator.generate_mocks(
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
         tests.sample.code.tested_module, mock_modules=False,
-        mock_functions=False, mock_builtin=True)
+        mock_functions=False, mock_builtin=True, mock_classes=False,
+        mock_referenced_classes=False, mock_classes_static=False)
 
     assert MOCKED_FUNCTIONS_HEADER + MOCKED_BUILTIN == generated_mocks
 
@@ -291,7 +353,8 @@ def test_generate_mocks_classes_only():
         mock_functions=False, mock_builtin=False, mock_classes=True,
         mock_classes_static=False)
 
-    assert MOCKED_CLASSES_HEADER + MOCKED_CLASSES == generated_mocks
+    assert MOCKED_CLASSES_HEADER + MOCKED_CLASSES + MOCKED_REFERENCED_CLASSES \
+           == generated_mocks
 
 
 def test_generate_mocks_classes_static_only():
@@ -313,8 +376,8 @@ def test_generate_mocks_all():
 
     assert MOCKED_MODULES_HEADER + MOCKED_MODULES + \
            MOCKED_FUNCTIONS_HEADER + MOCKED_FUNCTIONS + MOCKED_BUILTIN + \
-           MOCKED_CLASSES_HEADER + MOCKED_CLASSES == \
-           generated_mocks
+           MOCKED_CLASSES_HEADER + MOCKED_CLASSES + MOCKED_REFERENCED_CLASSES \
+           == generated_mocks
 
 
 def test_generate_mocks_default():
@@ -323,7 +386,8 @@ def test_generate_mocks_default():
         tests.sample.code.tested_module)
 
     assert MOCKED_MODULES_HEADER + MOCKED_MODULES + \
-           MOCKED_FUNCTIONS_HEADER + MOCKED_BUILTIN == generated_mocks
+           MOCKED_FUNCTIONS_HEADER + MOCKED_BUILTIN + \
+           MOCKED_CLASSES_HEADER + MOCKED_REFERENCED_CLASSES == generated_mocks
 
 
 def test_generate_call_list_are_in_same_folder_args(
@@ -569,3 +633,9 @@ def test_class_static_objects_behave_the_same(mocker):
         first.unknown_method()
 
     assert isinstance(first, tests.sample.code.tested_module.SecondClass)
+
+
+def test_referenced_class(mock_classes_only_collection):
+    mock_classes_only_collection.datetime.utcnow.return_value = 20
+    current_time = tests.sample.code.tested_module.get_current_time()
+    assert 20 == current_time

@@ -11,7 +11,8 @@ CallParameters = namedtuple('CallParameters', 'args, kwargs')
 
 def generate_mocks(mocking_framework, mocked_module, mock_modules=True,
                    mock_functions=False, mock_builtin=True,
-                   mock_classes=False, mock_classes_static=False):
+                   mock_classes=False, mock_referenced_classes=True,
+                   mock_classes_static=False):
     """
     Generates the list of mocks in order to mock the dependant modules and the
     functions of the given module.
@@ -29,10 +30,13 @@ def generate_mocks(mocking_framework, mocked_module, mock_modules=True,
         mock_builtin (bool): whether to mock builtin functions defined in the
             module
         mock_classes (bool): whether to mock classes defined in the module
+        mock_referenced_classes (bool): whether to mock classes referenced in
+            the module but defined elsewhere
         mock_classes_static (bool): whether to mock the static functions of the
-            classes defined in the module. This is important if the tested code
-            uses isinstance of accesses class functions directly. Used only if
-            mock_classes is `true`
+            mocked classes. This is important if the tested code uses
+            isinstance of accesses class functions directly. Used only if
+            mock_classes or mock_referenced_classes is `True`
+
 
     Returns:
         str: the code to put in your test to mock the desired behaviour.
@@ -57,6 +61,11 @@ def generate_mocks(mocking_framework, mocked_module, mock_modules=True,
         classes.extend(sorted([t[0] for t in
                                inspect.getmembers(mocked_module,
                                                   inspect.isclass) if
+                               t[1].__module__ == mocked_module.__name__]))
+    if mock_referenced_classes:
+        classes.extend(sorted([t[0] for t in
+                               inspect.getmembers(mocked_module,
+                                                  inspect.isclass) if not
                                t[1].__module__ == mocked_module.__name__]))
 
     if MockingFramework.PYTEST_MOCK == mocking_framework:

@@ -1,3 +1,4 @@
+from datetime import datetime as dt
 import os
 from os import remove as os_remove
 
@@ -67,3 +68,7 @@ def use_second_class_static(prop):
     instance = SecondClass(prop)
     instance.not_implemented()
     return SecondClass.prop == instance.prop
+
+
+def get_current_time():
+    return dt.utcnow()
