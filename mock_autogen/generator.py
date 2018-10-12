@@ -1,3 +1,4 @@
+import re
 import types
 from collections import namedtuple, OrderedDict
 
@@ -215,4 +216,6 @@ def _param_string(args, kwargs):
             params += ', '
         params += ', '.join(
             ['{}={!r}'.format(k, v) for k, v in sorted(kwargs.iteritems())])
-    return params
+    return re.sub(r'(?P<default_repr>\<.*? object at 0x[0-9A-Fa-f]+\>)',
+                  lambda default_repr: re.sub('[^0-9a-zA-Z\._]+', '_',
+                                              default_repr.group()), params)

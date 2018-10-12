@@ -130,6 +130,6 @@ are no open file handles which could cause problems.
 Can you imagine the time it would have taken you to implement this on your own?
 
 I hope that by now you were convinced that this tool can save you a lot of 
-time. See `tests` for additional usage examples (like using fixtures to share
-mocks between tests).
+time. See `tests` for additional usage examples like mocking classes and 
+instances, using fixtures to share mocks between tests and more.
 

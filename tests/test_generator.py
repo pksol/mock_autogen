@@ -604,8 +604,8 @@ def test_generate_call_list_non_overridden_repr(mocker):
         r"^assert 1 == mock_FirstClass.call_count\n"
         r"mock_FirstClass.assert_called_once_with\('20'\)\n"
         r"mock_FirstClass.return_value.not_implemented."
-        r"assert_called_once_with\(<tests.sample.code.tested_module."
-        r"SecondClass object at 0x[0-9A-Fa-f]+>\)\n$",
+        r"assert_called_once_with\(_tests.sample.code.tested_module."
+        r"SecondClass_object_at_0x[0-9A-Fa-f]+_\)\n$",
         generated)
 
 
