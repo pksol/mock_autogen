@@ -63,6 +63,9 @@ MOCKED_BUILTIN = "mock_os_remove = mocker.MagicMock(name='os_remove')\n" \
                  "mocker.patch('tests.sample.code.tested_module.os_remove', " \
                  "new=mock_os_remove)\n"
 
+MOCKED_METHODS_HEADER = "# mocked methods\n"
+MOCKED_METHODS = "mocker.patch.object(first, 'not_implemented')\n"
+
 MOCKED_CLASSES_HEADER = "# mocked classes\n"
 MOCKED_CLASSES = "mock_FirstClass = mocker.MagicMock(name='FirstClass', " \
                  "spec=tests.sample.code.tested_module.FirstClass)\n" \
@@ -336,6 +339,18 @@ def test_generate_mocks_functions_only():
     assert MOCKED_FUNCTIONS_HEADER + MOCKED_FUNCTIONS == generated_mocks
 
 
+def test_generate_mocks_object_methods_only():
+    first = tests.sample.code.tested_module.FirstClass('20')
+
+    generated_mocks_instance = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        first, mocked_name='first', mock_modules=False,
+        mock_functions=True, mock_builtin=False, mock_classes=False,
+        mock_referenced_classes=False, mock_classes_static=False)
+
+    assert MOCKED_METHODS_HEADER + MOCKED_METHODS == generated_mocks_instance
+
+
 def test_generate_mocks_builtin_only():
     generated_mocks = mock_autogen.generator.generate_mocks(
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
@@ -388,6 +403,16 @@ def test_generate_mocks_default():
     assert MOCKED_MODULES_HEADER + MOCKED_MODULES + \
            MOCKED_FUNCTIONS_HEADER + MOCKED_BUILTIN + \
            MOCKED_CLASSES_HEADER + MOCKED_REFERENCED_CLASSES == generated_mocks
+
+
+def test_generate_mocks_function():
+    generated_mocks_function = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        tests.sample.code.tested_module.get_current_time, mock_modules=True,
+        mock_functions=True, mock_builtin=True, mock_classes=True,
+        mock_referenced_classes=True, mock_classes_static=True)
+
+    assert "" == generated_mocks_function  # not supported
 
 
 def test_generate_call_list_are_in_same_folder_args(
@@ -557,8 +582,31 @@ def test_generate_call_list_class(mocker):
     assert "assert 1 == mock_FirstClass.call_count\n" \
            "mock_FirstClass.assert_called_once_with('20')\n" \
            "mock_FirstClass.return_value.not_implemented." \
-           "assert_called_once_with()\n" == generated
+           "assert_called_once_with(None)\n" == generated
     exec generated  # verify the validity of assertions
+
+
+def test_generate_call_list_non_overridden_repr(mocker):
+    # mocked classes
+    mock_FirstClass = mocker.MagicMock(
+        name='FirstClass',
+        spec=tests.sample.code.tested_module.FirstClass)
+    mocker.patch('tests.sample.code.tested_module.FirstClass',
+                 new=mock_FirstClass)
+
+    tests.sample.code.tested_module.use_first_class(
+        '20', tests.sample.code.tested_module.SecondClass(42))
+
+    generated = mock_autogen.generator.generate_call_list(
+        mock_FirstClass,
+        mock_name="mock_FirstClass")
+    assert re.match(
+        r"^assert 1 == mock_FirstClass.call_count\n"
+        r"mock_FirstClass.assert_called_once_with\('20'\)\n"
+        r"mock_FirstClass.return_value.not_implemented."
+        r"assert_called_once_with\(<tests.sample.code.tested_module."
+        r"SecondClass object at 0x[0-9A-Fa-f]+>\)\n$",
+        generated)
 
 
 def test_generate_call_list_class_static(mocker):
@@ -626,16 +674,54 @@ def test_class_static_objects_behave_the_same(mocker):
     mocker.patch('tests.sample.code.tested_module.SecondClass',
                  new=MockedSecondClass)
 
-    first = tests.sample.code.tested_module.SecondClass('20')
-    first.not_implemented()
+    second = tests.sample.code.tested_module.SecondClass('20')
+    second.not_implemented()
 
     with pytest.raises(AttributeError):
-        first.unknown_method()
+        second.unknown_method()
 
-    assert isinstance(first, tests.sample.code.tested_module.SecondClass)
+    assert isinstance(second, tests.sample.code.tested_module.SecondClass)
 
 
 def test_referenced_class(mock_classes_only_collection):
     mock_classes_only_collection.datetime.utcnow.return_value = 20
     current_time = tests.sample.code.tested_module.get_current_time()
     assert 20 == current_time
+
+
+def test_mock_object_instance(mocker):
+    first = tests.sample.code.tested_module.FirstClass('20')
+    exec MOCKED_METHODS  # mocks all the methods
+
+    first.not_implemented()  # would have raised exception otherwise
+    first.not_implemented.assert_called_once_with()
+
+
+def test_mock_object_class_direct(mocker):
+    first_class = tests.sample.code.tested_module.FirstClass
+
+    generated_mocks_class = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        first_class, mocked_name='first_class', mock_modules=False,
+        mock_functions=True, mock_builtin=False, mock_classes=False,
+        mock_referenced_classes=False, mock_classes_static=False)
+    exec generated_mocks_class
+
+    first_class_instance = first_class(42)
+    first_class_instance.not_implemented('some param')
+    first_class_instance.not_implemented.assert_called_once_with('some param')
+
+
+def test_mock_object_class_indirect(mocker):
+    first_class = tests.sample.code.tested_module.FirstClass
+
+    generated_mocks_class = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        first_class, mocked_name='first_class', mock_modules=False,
+        mock_functions=True, mock_builtin=False, mock_classes=False,
+        mock_referenced_classes=False, mock_classes_static=False)
+    exec generated_mocks_class
+
+    first_class_instance = tests.sample.code.tested_module.FirstClass(42)
+    first_class_instance.not_implemented('some param')
+    first_class_instance.not_implemented.assert_called_once_with('some param')

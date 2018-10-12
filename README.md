@@ -41,8 +41,9 @@ import mock_autogen
 
 generated_mocks = mock_autogen.generator.generate_mocks(
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
-        os_wrapper, mock_modules=True,
-        mock_functions=False, mock_builtin=False)
+        os_wrapper, mock_modules=True, mock_functions=False, 
+        mock_builtin=False, mock_classes=False, 
+        mock_referenced_classes=False, mock_classes_static=False)
 ```
 The `generated_mocks` variable now has the desired code: 
 ```python

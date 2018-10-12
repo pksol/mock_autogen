@@ -46,7 +46,7 @@ class FirstClass(object):
     def __init__(self, prop):
         self.prop = prop
 
-    def not_implemented(self):
+    def not_implemented(self, param):
         raise NotImplementedError()
 
 
@@ -60,8 +60,8 @@ class SecondClass(object):
         raise NotImplementedError()
 
 
-def use_first_class(prop):
-    FirstClass(prop).not_implemented()
+def use_first_class(prop, opt_param=None):
+    FirstClass(prop).not_implemented(opt_param)
 
 
 def use_second_class_static(prop):
