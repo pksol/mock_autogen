@@ -56,6 +56,7 @@ def generate_mocks(mocking_framework, mocked_object, mocked_name="",
     classes = []
     methods = []
     if not isinstance(mocked_object, types.ModuleType):
+        mocked_name = mocked_name if mocked_name else "mocked_object"
         if mock_functions:
             methods.extend(sorted([t[0] for t in
                                    inspect.getmembers(
