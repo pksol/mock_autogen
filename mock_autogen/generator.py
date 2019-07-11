@@ -5,16 +5,21 @@ from collections import namedtuple, OrderedDict
 from aenum import Enum
 import inspect
 
-from mock import MagicMock
+import mock
+import unittest.mock
 
 MockingFramework = Enum('MockingFramework', 'PYTEST_MOCK')
 CallParameters = namedtuple('CallParameters', 'args, kwargs')
 
 
-def generate_mocks(mocking_framework, mocked_object, mocked_name="",
+def generate_mocks(mocking_framework,
+                   mocked_object,
+                   mocked_name="",
                    mock_modules=True,
-                   mock_functions=False, mock_builtin=True,
-                   mock_classes=False, mock_referenced_classes=True,
+                   mock_functions=False,
+                   mock_builtin=True,
+                   mock_classes=False,
+                   mock_referenced_classes=True,
                    mock_classes_static=False):
     """
     Generates the list of mocks in order to mock the dependant modules and the
@@ -58,48 +63,63 @@ def generate_mocks(mocking_framework, mocked_object, mocked_name="",
     if not isinstance(mocked_object, types.ModuleType):
         mocked_name = mocked_name if mocked_name else "mocked_object"
         if mock_functions:
-            methods.extend(sorted([t[0] for t in
-                                   inspect.getmembers(
-                                       mocked_object, inspect.ismethod) if
-                                   t[0] != "__init__"]))
+            methods.extend(
+                sorted([
+                    t[0] for t in inspect.getmembers(
+                        mocked_object,
+                        predicate=
+                        lambda x: inspect.isfunction(x) or inspect.ismethod(x))
+                    if t[0] != "__init__"
+                ]))
     else:
         mocked_name = mocked_name if mocked_name else mocked_object.__name__
         if mock_modules:
-            modules.extend(sorted([t[0] for t in
-                                   inspect.getmembers(mocked_object,
-                                                      inspect.ismodule)]))
+            modules.extend(
+                sorted([
+                    t[0] for t in inspect.getmembers(mocked_object,
+                                                     inspect.ismodule)
+                ]))
         if mock_functions:
-            functions.extend(sorted([t[0] for t in
-                                     inspect.getmembers(mocked_object,
-                                                        inspect.isfunction)]))
+            functions.extend(
+                sorted([
+                    t[0] for t in inspect.getmembers(
+                        mocked_object,
+                        predicate=
+                        lambda x: inspect.isfunction(x) or inspect.ismethod(x))
+                ]))
         if mock_builtin:
-            functions.extend(sorted([t[0] for t in
-                                     inspect.getmembers(
-                                         mocked_object, inspect.isbuiltin)]))
+            functions.extend(
+                sorted([
+                    t[0] for t in inspect.getmembers(mocked_object,
+                                                     inspect.isbuiltin)
+                ]))
 
         if mock_classes:
-            classes.extend(sorted([t[0] for t in
-                                   inspect.getmembers(mocked_object,
-                                                      inspect.isclass) if
-                                   t[1].__module__ == mocked_object.__name__]))
+            classes.extend(
+                sorted([
+                    t[0]
+                    for t in inspect.getmembers(mocked_object, inspect.isclass)
+                    if t[1].__module__ == mocked_object.__name__
+                ]))
         if mock_referenced_classes:
-            classes.extend(sorted([t[0] for t in
-                                   inspect.getmembers(mocked_object,
-                                                      inspect.isclass) if not
-                                   t[1].__module__ == mocked_object.__name__]))
+            classes.extend(
+                sorted([
+                    t[0]
+                    for t in inspect.getmembers(mocked_object, inspect.isclass)
+                    if not t[1].__module__ == mocked_object.__name__
+                ]))
 
     if MockingFramework.PYTEST_MOCK == mocking_framework:
-        return _pytest_mock_generate(
-            mocked_name, modules, functions, methods, classes,
-            mock_classes_static)
+        return _pytest_mock_generate(mocked_name, modules, functions, methods,
+                                     classes, mock_classes_static)
     else:
         raise ValueError("Unsupported mocking framework: {0}. "
-                         "You are welcome to add code to support it :)".
-                         format(mocking_framework))
+                         "You are welcome to add code to support it :)".format(
+                             mocking_framework))
 
 
-def _pytest_mock_generate(mocked_name, modules, functions, methods,
-                          classes, mock_classes_static):
+def _pytest_mock_generate(mocked_name, modules, functions, methods, classes,
+                          mock_classes_static):
     generated = ""
     if modules:
         generated += "# mocked modules\n"
@@ -150,8 +170,7 @@ class Mocked{0}Meta(type):
     def __getattr__(cls, key):
         return Mocked{0}Meta.static_instance.__getattr__(key)
 
-class Mocked{0}(object):
-    __metaclass__ = Mocked{0}Meta
+class Mocked{0}(metaclass=Mocked{0}Meta):
     original_cls = {1}.{0}
     instances = []
 
@@ -165,10 +184,11 @@ mocker.patch('{1}.{0}', new=Mocked{0})
 
 
 def generate_call_list(mock_object, mock_name='mocked'):
-    if not isinstance(mock_object, MagicMock):
+    if not isinstance(mock_object, mock.MagicMock) and \
+            not isinstance(mock_object, unittest.mock.MagicMock):
         raise TypeError("Unsupported mocking object: {0}. "
-                        "You are welcome to add code to support it :)".
-                        format(type(mock_object)))
+                        "You are welcome to add code to support it :)".format(
+                            type(mock_object)))
 
     generated_asserts = ""
     if mock_object.call_args_list:
@@ -187,7 +207,7 @@ def generate_call_list(mock_object, mock_name='mocked'):
         call_dictionary[method].append(CallParameters(args, kwargs))
 
     had_multiple_calls_for_single_method = False
-    for func_path, call_list in call_dictionary.iteritems():
+    for func_path, call_list in call_dictionary.items():
         if 1 == len(call_list):
             args, kwargs = call_list[0]
             generated_asserts += "{0}.assert_called_once_with({1})\n".format(
@@ -216,7 +236,7 @@ def _param_string(args, kwargs):
         if params:
             params += ', '
         params += ', '.join(
-            ['{}={!r}'.format(k, v) for k, v in sorted(kwargs.iteritems())])
+            ['{}={!r}'.format(k, v) for k, v in sorted(kwargs.items())])
     return re.sub(r'(?P<default_repr>\<.*? object at 0x[0-9A-Fa-f]+\>)',
                   lambda default_repr: re.sub('[^0-9a-zA-Z\._]+', '_',
                                               default_repr.group()), params)
