@@ -155,14 +155,14 @@ MocksBuiltinOnlyCollection = namedtuple('MocksAllCollection', 'os_remove')
 @pytest.fixture
 def mock_classes_only_collection(mocker):
     """
-        The mocks are taken from `test_generate_mocks_modules_only` :)
-    
-        Args:
-            mocker (pytest.fixture): the mocker fixture
-    
-        Yields:
-            MocksClassesOnlyCollection: The generated mocks.
-        """
+    The mocks are taken from `test_generate_mocks_modules_only` :)
+
+    Args:
+        mocker (pytest.fixture): the mocker fixture
+
+    Yields:
+        MocksClassesOnlyCollection: The generated mocks.
+    """
     # mocked classes
     mock_FirstClass = mocker.MagicMock(
         name='FirstClass', spec=tests.sample.code.tested_module.FirstClass)
@@ -350,7 +350,7 @@ def test_generate_mocks_object_methods_only():
     generated_mocks_instance = mock_autogen.generator.generate_mocks(
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
         first,
-        mocked_name='first',
+        name='first',
         mock_modules=False,
         mock_functions=True,
         mock_builtin=False,
@@ -386,7 +386,7 @@ def test_generate_mocks_classes_only():
         mock_classes_static=False)
 
     assert MOCKED_CLASSES_HEADER + MOCKED_CLASSES + MOCKED_REFERENCED_CLASSES \
-           == generated_mocks
+        == generated_mocks
 
 
 def test_generate_mocks_classes_static_only():
@@ -413,9 +413,9 @@ def test_generate_mocks_all():
         mock_classes_static=False)
 
     assert MOCKED_MODULES_HEADER + MOCKED_MODULES + \
-           MOCKED_FUNCTIONS_HEADER + MOCKED_FUNCTIONS + MOCKED_BUILTIN + \
-           MOCKED_CLASSES_HEADER + MOCKED_CLASSES + MOCKED_REFERENCED_CLASSES \
-           == generated_mocks
+        MOCKED_FUNCTIONS_HEADER + MOCKED_FUNCTIONS + MOCKED_BUILTIN + \
+        MOCKED_CLASSES_HEADER + MOCKED_CLASSES + MOCKED_REFERENCED_CLASSES \
+        == generated_mocks
 
 
 def test_generate_mocks_default():
@@ -424,8 +424,8 @@ def test_generate_mocks_default():
         tests.sample.code.tested_module)
 
     assert MOCKED_MODULES_HEADER + MOCKED_MODULES + \
-           MOCKED_FUNCTIONS_HEADER + MOCKED_BUILTIN + \
-           MOCKED_CLASSES_HEADER + MOCKED_REFERENCED_CLASSES == generated_mocks
+        MOCKED_FUNCTIONS_HEADER + MOCKED_BUILTIN + \
+        MOCKED_CLASSES_HEADER + MOCKED_REFERENCED_CLASSES == generated_mocks
 
 
 def test_generate_mocks_function():
@@ -442,34 +442,55 @@ def test_generate_mocks_function():
     assert "" == generated_mocks_function  # not supported
 
 
-def test_generate_call_list_are_in_same_folder_args(
-        mock_everything_collection):
+def test_get_call_list_are_in_same_folder_args(mock_everything_collection):
     tests.sample.code.tested_module.are_in_same_folder('/some/path/file1.txt',
                                                        '/some/path/file2.txt')
 
     mock_are_in_same_folder = mock_everything_collection.are_in_same_folder
-    generated = mock_autogen.generator.generate_call_list(
-        mock_are_in_same_folder, 'mock_are_in_same_folder')
+    generated = mock_autogen.generator.get_call_list(mock_are_in_same_folder)
     assert 'assert 1 == mock_are_in_same_folder.call_count\n' \
            "mock_are_in_same_folder.assert_called_once_with(" \
            "'/some/path/file1.txt', '/some/path/file2.txt')\n" == generated
     exec (generated)  # verify the validity of assertions
 
 
-def test_generate_call_list_mocks_are_untouched(mock_everything_collection):
+def test_get_call_list_rename_argument(mock_everything_collection):
+    tests.sample.code.tested_module.are_in_same_folder('/some/path/file1.txt',
+                                                       '/some/path/file2.txt')
+
+    mock_are_in_same_folder = mock_everything_collection.are_in_same_folder
+    generated = mock_autogen.generator.get_call_list(
+        mock_are_in_same_folder, name='my_mock')
+    assert 'assert 1 == my_mock.call_count\n' \
+           "my_mock.assert_called_once_with(" \
+           "'/some/path/file1.txt', '/some/path/file2.txt')\n" == generated
+
+
+def test_get_call_list_unable_to_find_argument(mock_everything_collection):
+    tests.sample.code.tested_module.are_in_same_folder('/some/path/file1.txt',
+                                                       '/some/path/file2.txt')
+
+    generated = mock_autogen.generator.get_call_list(
+        mock_everything_collection.are_in_same_folder)
+    assert 'assert 1 == arg.call_count\n' \
+           "arg.assert_called_once_with(" \
+           "'/some/path/file1.txt', '/some/path/file2.txt')\n" == generated
+
+
+def test_get_call_list_mocks_were_not_called(mock_everything_collection):
     for mocked in mock_everything_collection:
-        generated = mock_autogen.generator.generate_call_list(mocked)
-        assert "" == generated
+        generated = mock_autogen.generator.get_call_list(mocked)
+        assert "mocked.assert_not_called()" == generated
+        exec (generated)
 
 
-def test_generate_call_list_are_in_same_folder_kwargs(
+def test_get_call_list_are_in_same_folder_kwargs(
         mock_functions_only_collection):
     tests.sample.code.tested_module.are_in_same_folder(
         path1='/some/path/file1.txt', path2='/some/path/file2.txt')
 
     mock_are_in_same_folder = mock_functions_only_collection.are_in_same_folder
-    generated = mock_autogen.generator.generate_call_list(
-        mock_are_in_same_folder, mock_name="mock_are_in_same_folder")
+    generated = mock_autogen.generator.get_call_list(mock_are_in_same_folder)
     assert "assert 1 == mock_are_in_same_folder.call_count\n" \
            "mock_are_in_same_folder.assert_called_once_with(" \
            "path1='/some/path/file1.txt', " \
@@ -477,14 +498,13 @@ def test_generate_call_list_are_in_same_folder_kwargs(
     exec (generated)  # verify the validity of assertions
 
 
-def test_generate_call_list_are_in_same_folder_mix_args_kwargs(
+def test_get_call_list_are_in_same_folder_mix_args_kwargs(
         mock_everything_collection):
     tests.sample.code.tested_module.are_in_same_folder(
         '/some/path/file1.txt', path2='/some/path/file2.txt')
 
     mock_are_in_same_folder = mock_everything_collection.are_in_same_folder
-    generated = mock_autogen.generator.generate_call_list(
-        mock_are_in_same_folder, 'mock_are_in_same_folder')
+    generated = mock_autogen.generator.get_call_list(mock_are_in_same_folder)
     assert "assert 1 == mock_are_in_same_folder.call_count\n" \
            "mock_are_in_same_folder.assert_called_once_with(" \
            "'/some/path/file1.txt', " \
@@ -492,25 +512,23 @@ def test_generate_call_list_are_in_same_folder_mix_args_kwargs(
     exec (generated)  # verify the validity of assertions
 
 
-def test_generate_call_list_rm_alias_builtin_only(
-        mock_builtin_only_collection):
+def test_get_call_list_rm_alias_builtin_only(mock_builtin_only_collection):
     tests.sample.code.tested_module.rm_alias('/some/path/file1.txt')
 
     mock_os_remove = mock_builtin_only_collection.os_remove
-    generated = mock_autogen.generator.generate_call_list(
-        mock_os_remove, 'mock_os_remove')
+    generated = mock_autogen.generator.get_call_list(mock_os_remove)
     assert "assert 1 == mock_os_remove.call_count\n" \
            "mock_os_remove.assert_called_once_with('/some/path/file1.txt')\n" \
            == generated
     exec (generated)  # verify the validity of assertions
 
 
-def test_generate_call_list_append_to_cwd_builtin_only(
+def test_get_call_list_append_to_cwd_builtin_only(
         mock_modules_only_collection):
     tests.sample.code.tested_module.append_to_cwd('/some/path/file1.txt')
 
     mock_os = mock_modules_only_collection.os
-    generated = mock_autogen.generator.generate_call_list(mock_os, 'mock_os')
+    generated = mock_autogen.generator.get_call_list(mock_os)
     assert re.match(
         r"^mock_os.getcwd.assert_called_once_with\(\)\n"
         r"mock_os.path.join.assert_called_once_with"
@@ -523,7 +541,7 @@ def test_generate_call_list_append_to_cwd_builtin_only(
     mock_os.getcwd.assert_called_once_with()
 
 
-def test_generate_call_list_append_to_cwd_builtin_only_mocked_cwd(
+def test_get_call_list_append_to_cwd_builtin_only_mocked_cwd(
         mock_modules_only_collection):
     mock_os = mock_modules_only_collection.os
 
@@ -533,32 +551,30 @@ def test_generate_call_list_append_to_cwd_builtin_only_mocked_cwd(
 
     tests.sample.code.tested_module.append_to_cwd('/some/path/file1.txt')
 
-    generated = mock_autogen.generator.generate_call_list(mock_os, 'mock_os')
+    generated = mock_autogen.generator.get_call_list(mock_os)
     assert "mock_os.getcwd.assert_called_once_with()\n" \
            "mock_os.path.join.assert_called_once_with" \
            "('/some/pwd', '/some/path/file1.txt')\n" == generated
     exec (generated)  # verify the validity of assertions
 
 
-def test_generate_call_list_add_mix_types(mock_functions_only_collection):
+def test_get_call_list_add_mix_types(mock_functions_only_collection):
     tests.sample.code.tested_module.add('one', 2)
 
     mock_add = mock_functions_only_collection.add
-    generated = mock_autogen.generator.generate_call_list(
-        mock_add, mock_name="mock_add")
+    generated = mock_autogen.generator.get_call_list(mock_add)
     assert 'assert 1 == mock_add.call_count\n' \
            "mock_add.assert_called_once_with(" \
            "'one', 2)\n" == generated
     exec (generated)  # verify the validity of assertions
 
 
-def test_generate_call_list_add_multiple_calls(mock_functions_only_collection):
+def test_get_call_list_add_multiple_calls(mock_functions_only_collection):
     tests.sample.code.tested_module.add(1, 2)
     tests.sample.code.tested_module.add('one', 'two')
 
     mock_add = mock_functions_only_collection.add
-    generated = mock_autogen.generator.generate_call_list(
-        mock_add, mock_name="mock_add")
+    generated = mock_autogen.generator.get_call_list(mock_add)
     assert 'from mock import call\n\n' \
            'assert 2 == mock_add.call_count\n' \
            "mock_add.assert_has_calls(calls=[call(1, 2)," \
@@ -566,13 +582,12 @@ def test_generate_call_list_add_multiple_calls(mock_functions_only_collection):
     exec (generated)  # verify the validity of assertions
 
 
-def test_generate_call_list_context_manager(mock_modules_only_collection):
+def test_get_call_list_context_manager(mock_modules_only_collection):
     tests.sample.code.tested_module.process_and_zip('/path/to.zip',
                                                     'in_zip.txt', 'foo bar')
 
     mock_zipfile = mock_modules_only_collection.zipfile
-    generated = mock_autogen.generator.generate_call_list(
-        mock_zipfile, mock_name="mock_zipfile")
+    generated = mock_autogen.generator.get_call_list(mock_zipfile)
     assert "mock_zipfile.ZipFile.assert_called_once_with(" \
            "'/path/to.zip', 'w')\n" \
            "mock_zipfile.ZipFile.return_value.__enter__." \
@@ -585,7 +600,7 @@ def test_generate_call_list_context_manager(mock_modules_only_collection):
     exec (generated)  # verify the validity of assertions
 
 
-def test_generate_call_list_class(mocker):
+def test_get_call_list_class(mocker):
     # mocked classes
     mock_FirstClass = mocker.MagicMock(
         name='FirstClass', spec=tests.sample.code.tested_module.FirstClass)
@@ -594,8 +609,7 @@ def test_generate_call_list_class(mocker):
 
     tests.sample.code.tested_module.use_first_class('20')
 
-    generated = mock_autogen.generator.generate_call_list(
-        mock_FirstClass, mock_name="mock_FirstClass")
+    generated = mock_autogen.generator.get_call_list(mock_FirstClass)
     assert "assert 1 == mock_FirstClass.call_count\n" \
            "mock_FirstClass.assert_called_once_with('20')\n" \
            "mock_FirstClass.return_value.not_implemented." \
@@ -603,7 +617,7 @@ def test_generate_call_list_class(mocker):
     exec (generated)  # verify the validity of assertions
 
 
-def test_generate_call_list_non_overridden_repr(mocker):
+def test_get_call_list_non_overridden_repr(mocker):
     # mocked classes
     mock_FirstClass = mocker.MagicMock(
         name='FirstClass', spec=tests.sample.code.tested_module.FirstClass)
@@ -613,8 +627,7 @@ def test_generate_call_list_non_overridden_repr(mocker):
     tests.sample.code.tested_module.use_first_class(
         '20', tests.sample.code.tested_module.SecondClass(42))
 
-    generated = mock_autogen.generator.generate_call_list(
-        mock_FirstClass, mock_name="mock_FirstClass")
+    generated = mock_autogen.generator.get_call_list(mock_FirstClass)
     assert re.match(
         r"^assert 1 == mock_FirstClass.call_count\n"
         r"mock_FirstClass.assert_called_once_with\('20'\)\n"
@@ -623,7 +636,7 @@ def test_generate_call_list_non_overridden_repr(mocker):
         r"SecondClass_object_at_0x[0-9A-Fa-f]+_\)\n$", generated)
 
 
-def test_generate_call_list_class_static(mocker):
+def test_get_call_list_class_static(mocker):
     # mocked classes
     class MockedSecondClassMeta(type):
         static_instance = mocker.MagicMock(
@@ -649,17 +662,16 @@ def test_generate_call_list_class_static(mocker):
 
     assert 1 == len(MockedSecondClass.instances)
 
-    generated_static = mock_autogen.generator.generate_call_list(
+    generated_static = mock_autogen.generator.get_call_list(
         MockedSecondClassMeta.static_instance,
-        mock_name="MockedSecondClassMeta.static_instance")
+        name="MockedSecondClassMeta.static_instance")
     assert re.match(
         r"^MockedSecondClassMeta.static_instance.prop.__eq__."
         r"assert_called_once_with\(<MagicMock "
         r"name='mock.prop' id='\d+'>\)\n$", generated_static)
 
-    generated_instance = mock_autogen.generator.generate_call_list(
-        MockedSecondClass.instances[0],
-        mock_name="MockedSecondClass.instances[0]")
+    generated_instance = mock_autogen.generator.get_call_list(
+        MockedSecondClass.instances[0], name="MockedSecondClass.instances[0]")
     assert re.match(
         r"^MockedSecondClass.instances\[0\].not_implemented."
         r"assert_called_once_with\(\)\n"
@@ -719,7 +731,7 @@ def test_mock_object_class_direct(mocker):
     generated_mocks_class = mock_autogen.generator.generate_mocks(
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
         first_class,
-        mocked_name='first_class',
+        name='first_class',
         mock_modules=False,
         mock_functions=True,
         mock_builtin=False,
@@ -739,7 +751,7 @@ def test_mock_object_class_indirect(mocker):
     generated_mocks_class = mock_autogen.generator.generate_mocks(
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
         first_class,
-        mocked_name='first_class',
+        name='first_class',
         mock_modules=False,
         mock_functions=True,
         mock_builtin=False,
