@@ -18,6 +18,8 @@ boilerplates, by generating the `Arrange` and `Assert` sections automatically.
 The generated code can then be used as is or altered according to your needs.
 
 ## Usage
+Note: All examples assume the `pytest-mock` which is a fixture for `pytest`. 
+
 ### Simple example
 Let's start with a simple code example. Say you have a module `os_wrapper.py`:
 ```python
@@ -46,13 +48,9 @@ modules):
 
 ```python
 import os_wrapper
-import mock_autogen
+from mock_autogen.pytest_mocker import PytestMocker
 
-generated_mocks = mock_autogen.generator.generate_mocks(
-        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
-        os_wrapper, mock_modules=True, mock_functions=False, 
-        mock_builtin=False, mock_classes=False, 
-        mock_referenced_classes=False, mock_classes_static=False)
+generated_mocks = PytestMocker(os_wrapper).mock_modules().generate() 
 ```
 The `generated_mocks` variable now has the desired code: 
 ```python
@@ -79,11 +77,9 @@ def test_os_remove_wrap(mocker):
 Now it's time to add the asserts. Add the following code right after the Act 
 step:
 ```python
-generated_call_list = mock_autogen.generator.generate_call_list(mock_os, 
-    mock_name='mock_os')
+generated_call_list = mock_autogen.generator.get_call_list(mock_os)
 ```
-The `mock_os` is the mocked object you created earlier and `mock_name` is its 
-name.
+The `mock_os` is the mocked object you created earlier.
 
 The `generated_call_list` variable now has the desired code: 
 ```python
