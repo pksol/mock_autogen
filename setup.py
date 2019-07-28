@@ -7,7 +7,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setup(
     name="mock-generator",
-    version="0.1.0",
+    version="0.2.0",
     description="Generate python mocks and assertions quickly",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -23,7 +23,7 @@ setup(
         "Operating System :: OS Independent",
     ],
     packages=find_packages(),
-    install_requires=["aenum>=2.1.2", "mock>=3.0.5"],
+    install_requires=["mock>=3.0.5"],
     setup_requires=["pytest-runner>=2.0,<3dev"],
     tests_require=["pytest>=5.0.1", "pytest-mock>=1.10.4"],
     test_suite="tests")

@@ -2,7 +2,7 @@ import re
 import types
 from collections import namedtuple, OrderedDict
 
-from aenum import Enum
+from enum import Enum
 import inspect
 
 import mock as python_mock
@@ -197,7 +197,9 @@ def get_call_list(mock, name=''):
     """
     name = name if name else _guess_var_name(mock)
     if not isinstance(mock, python_mock.MagicMock) and \
-            not isinstance(mock, unittest.mock.MagicMock):
+            not isinstance(mock, unittest.mock.MagicMock) and \
+            not isinstance(mock, python_mock.Mock) and \
+            not isinstance(mock, unittest.mock.Mock):
         raise TypeError("Unsupported mocking object: {0}. "
                         "You are welcome to add code to support it :)".format(
                             type(mock)))
@@ -271,5 +273,5 @@ def _param_string(args, kwargs):
         params += ', '.join(
             ['{}={!r}'.format(k, v) for k, v in sorted(kwargs.items())])
     return re.sub(r'(?P<default_repr>\<.*? object at 0x[0-9A-Fa-f]+\>)',
-                  lambda default_repr: re.sub('[^0-9a-zA-Z\.]+', '_',
+                  lambda default_repr: re.sub('[^0-9a-zA-Z.]+', '_',
                                               default_repr.group()), params)
