@@ -160,6 +160,18 @@ are no open file handles which could cause problems.
 
 Can you imagine the time it would have taken you to code this on your own?
 
+### What's Next
+After you have followed through this example, you can use the Mock Generator 
+to mock everything. This way you can see all the possibilities of mocks. You 
+can also print the result right away, to avoid having to inspect variables. 
+It can look something like this:
+```python
+import os_wrapper
+from mock_autogen.pytest_mocker import PytestMocker
+
+print(PytestMocker(os_wrapper).mock_everything().generate()) 
+```
+
 ## Wrapping up
 I hope that by now you were convinced that this tool can save you a lot of 
 time. See `tests` folder for additional usage examples like mocking classes and 
