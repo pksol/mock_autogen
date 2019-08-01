@@ -17,7 +17,8 @@ class TestPytestMocker:
             'mock_builtin': False,
             'mock_classes': False,
             'mock_referenced_classes': False,
-            'mock_classes_static': False
+            'mock_classes_static': False,
+            'prepare_asserts_calls': False
         } == mocker.kwargs
 
     def test_mock_modules(self):
@@ -52,6 +53,12 @@ class TestPytestMocker:
 
         assert mocker.kwargs['mock_classes_static']
 
+    def test_prepare_asserts_calls(self):
+        mocker = PytestMocker(
+            tests.sample.code.tested_module).prepare_asserts_calls()
+
+        assert mocker.kwargs['prepare_asserts_calls']
+
     def test_mock_everything(self):
         mocker = PytestMocker(
             tests.sample.code.tested_module).mock_everything()
@@ -62,7 +69,8 @@ class TestPytestMocker:
             'mock_builtin': True,
             'mock_classes': True,
             'mock_referenced_classes': True,
-            'mock_classes_static': True
+            'mock_classes_static': True,
+            'prepare_asserts_calls': True
         } == mocker.kwargs
 
     def test_use_defaults(self):
@@ -82,7 +90,7 @@ class TestPytestMocker:
             name='pytest_mocker').mock_modules().generate()
 
         # assert
-        generated = mock_autogen.generator.get_call_list(mock_mock_autogen)
+        generated = mock_autogen.generator.generate_asserts(mock_mock_autogen)
         assert re.match(
             r"^mock_mock_autogen.generator.generate_mocks."
             r"assert_called_once_with\(framework=<MagicMock "
@@ -91,7 +99,7 @@ class TestPytestMocker:
             r"mock_classes_static=False, mock_functions=False, "
             r"mock_modules=True, mock_referenced_classes=False, "
             r"mocked=<module 'mock_autogen.pytest_mocker'.*>, "
-            r"name='pytest_mocker'\)$", generated)
+            r"name='pytest_mocker', prepare_asserts_calls=False\)$", generated)
 
     def test_generate_functional(self):
         generated_mocks = PytestMocker(
