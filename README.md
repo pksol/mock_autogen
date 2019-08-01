@@ -56,6 +56,7 @@ generated_mocks = PytestMocker(os_wrapper).mock_modules().generate()
 ```
 The `generated_mocks` variable now has the desired code: 
 ```python
+# mocked modules
 mock_os = mocker.MagicMock(name='os')
 mocker.patch('os_wrapper.os', new=mock_os)
 ```
@@ -66,6 +67,7 @@ import os_wrapper
 def test_os_remove_wrap(mocker):
     # Arrange: setup any mocks to avoid deleting actual files
     # auto generated code
+    # mocked modules
     mock_os = mocker.MagicMock(name='os')
     mocker.patch('os_wrapper.os', new=mock_os)
     
@@ -81,11 +83,11 @@ step:
 ```python
 import mock_autogen
 
-generated_call_list = mock_autogen.generator.get_call_list(mock_os)
+generated_asserts = mock_autogen.generator.generate_asserts(mock_os)
 ```
 The `mock_os` is the mocked object you created earlier.
 
-The `generated_call_list` variable now has the desired code: 
+The `generated_asserts` variable now has the desired code: 
 ```python
 mock_os.remove.assert_called_once_with('/my/path/to/file.txt')
 ```
@@ -98,6 +100,7 @@ import os_wrapper
 def test_os_remove_wrap(mocker):
     # Arrange: setup any mocks to avoid deleting actual files
     # auto generated code
+    # mocked modules
     mock_os = mocker.MagicMock(name='os')
     mocker.patch('os_wrapper.os', new=mock_os)
     
@@ -162,7 +165,7 @@ Can you imagine the time it would have taken you to code this on your own?
 
 ### What's Next
 After you have followed through this example, you can use the Mock Generator 
-to mock everything. This way you can see all the possibilities of mocks. You 
+to **mock everything**. This way you can see all the possibilities of mocks. You 
 can also print the result right away, to avoid having to inspect variables. 
 It can look something like this:
 ```python
@@ -171,10 +174,31 @@ from mock_autogen.pytest_mocker import PytestMocker
 
 print(PytestMocker(os_wrapper).mock_everything().generate()) 
 ```
+What you would get is:
+```python
+# mocked modules
+mock_os = mocker.MagicMock(name='os')
+mocker.patch('os_wrapper.os', new=mock_os)
+# mocked functions
+mock_os_remove_wrap = mocker.MagicMock(name='os_remove_wrap')
+mocker.patch('os_wrapper.os_remove', new=mock_os_remove_wrap)
+# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+print(mock_autogen.generator.generate_asserts(mock_os, name='mock_os'))
+print(mock_autogen.generator.generate_asserts(mock_os_remove_wrap, name='mock_os_remove_wrap'))
+```
+Notice the mocked functions section, it allows you to mock functions in
+that model. This is useful when you're testing a function which uses
+another function you would like to mock.
+
+You even get the calls to generate the asserts prepared for you, place
+this code after the act section as shown in the simple example. 
 
 ## Wrapping up
 I hope that by now you were convinced that this tool can save you a lot of 
-time. See `tests` folder for additional usage examples like mocking classes and 
-instances, using fixtures to share mocks between tests and more.
+time. 
+
+See `tests` folder for additional usage examples like mocking classes and 
+instances, using fixtures to share mocks between tests and much more.
 
 If you would like to contribute, I'm accepting pull requests :)
