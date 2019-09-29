@@ -7,7 +7,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setup(
     name="mock-generator",
-    version="0.2.1",
+    version="0.2.2",
     description="Generate python mocks and assertions quickly",
     long_description=README,
     long_description_content_type="text/markdown",
