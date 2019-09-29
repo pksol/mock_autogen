@@ -134,7 +134,7 @@ class Mockeddt(metaclass=MockeddtMeta):
 mocker.patch('tests.sample.code.tested_module.dt', new=Mockeddt)
 """
 
-PREPARE_ASSERTS_CALLS_HEADER = "# calls to generate_asserts, put this after the 'act'\nimport mock_autogen\n"
+PREPARE_ASSERTS_CALLS_HEADER = "# calls to generate_asserts, put this after the 'act'\nimport mock_autogen.generator\n"
 
 PREPARE_ASSERTS_CALLS_DEFAULT = """print(mock_autogen.generator.generate_asserts(mock_os, name='mock_os'))
 print(mock_autogen.generator.generate_asserts(mock_second_module, name='mock_second_module'))

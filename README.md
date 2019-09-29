@@ -164,6 +164,7 @@ are no open file handles which could cause problems.
 Can you imagine the time it would have taken you to code this on your own?
 
 ### What's Next
+#### Mocking Everything
 After you have followed through this example, you can use the Mock Generator 
 to **mock everything**. This way you can see all the possibilities of mocks. You 
 can also print the result right away, to avoid having to inspect variables. 
@@ -193,6 +194,18 @@ another function you would like to mock.
 
 You even get the calls to generate the asserts prepared for you, place
 this code after the act section as shown in the simple example. 
+
+#### Asserting Existing Mocks
+At times, you may be editing a legacy code already containing mocks, or
+you may choose to write the mocks yourself, to gain some extra control.
+
+You can use the mock generator to generate the asserts for you, for
+any given `Mock` or `MagicMock`, like so (replace `mockObj`): 
+```python
+# calls to generate_asserts, put this after the 'act'
+import mock_autogen.generator
+print(mock_autogen.generator.generate_asserts(mockObj))
+```
 
 ## Wrapping up
 I hope that by now you were convinced that this tool can save you a lot of 

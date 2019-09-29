@@ -96,7 +96,7 @@ class PytestMocker:
     def mock_classes_static(self):
         """
         Mock the static functions of the mocked classes. This is important if
-        the tested code uses isinstance of accessed class functions directly.
+        the tested code uses static class functions directly.
 
         Relevant only if `mocked` is `types.ModuleType`. Used only if
         mock_classes or mock_referenced_classes is `True`
