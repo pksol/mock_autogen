@@ -5,6 +5,7 @@ import pytest
 
 import mock_autogen.generator
 import tests.sample.code.tested_module
+import tests.sample.code.second_module
 
 MOCKED_MODULES_HEADER = "# mocked modules\n"
 MOCKED_MODULES = "mock_os = mocker.MagicMock(name='os')\n" \
@@ -197,14 +198,14 @@ def mock_classes_only_collection(mocker):
     # mocked classes
     mock_FirstClass = mocker.MagicMock(
         name='FirstClass', spec=tests.sample.code.tested_module.FirstClass)
-    mocker.patch(
-        'tests.sample.code.tested_module.FirstClass', new=mock_FirstClass)
+    mocker.patch('tests.sample.code.tested_module.FirstClass',
+                 new=mock_FirstClass)
     mock_SecondClass = mocker.MagicMock(
         name='SecondClass', spec=tests.sample.code.tested_module.SecondClass)
-    mocker.patch(
-        'tests.sample.code.tested_module.SecondClass', new=mock_SecondClass)
-    mock_dt = mocker.MagicMock(
-        name='dt', spec=tests.sample.code.tested_module.dt)
+    mocker.patch('tests.sample.code.tested_module.SecondClass',
+                 new=mock_SecondClass)
+    mock_dt = mocker.MagicMock(name='dt',
+                               spec=tests.sample.code.tested_module.dt)
     mocker.patch('tests.sample.code.tested_module.dt', new=mock_dt)
 
     yield MocksClassesOnlyCollection(mock_FirstClass, mock_SecondClass,
@@ -226,9 +227,8 @@ def mock_modules_only_collection(mocker):
     mock_os = mocker.MagicMock(name='os')
     mocker.patch('tests.sample.code.tested_module.os', new=mock_os)
     mock_second_module = mocker.MagicMock(name='second_module')
-    mocker.patch(
-        'tests.sample.code.tested_module.second_module',
-        new=mock_second_module)
+    mocker.patch('tests.sample.code.tested_module.second_module',
+                 new=mock_second_module)
     mock_zipfile = mocker.MagicMock(name='zipfile')
     mocker.patch('tests.sample.code.tested_module.zipfile', new=mock_zipfile)
 
@@ -250,32 +250,30 @@ def mock_functions_only_collection(mocker):
     mock_add = mocker.MagicMock(name='add')
     mocker.patch('tests.sample.code.tested_module.add', new=mock_add)
     mock_append_to_cwd = mocker.MagicMock(name='append_to_cwd')
-    mocker.patch(
-        'tests.sample.code.tested_module.append_to_cwd',
-        new=mock_append_to_cwd)
+    mocker.patch('tests.sample.code.tested_module.append_to_cwd',
+                 new=mock_append_to_cwd)
     mock_are_in_same_folder = mocker.MagicMock(name='are_in_same_folder')
-    mocker.patch(
-        'tests.sample.code.tested_module.are_in_same_folder',
-        new=mock_are_in_same_folder)
+    mocker.patch('tests.sample.code.tested_module.are_in_same_folder',
+                 new=mock_are_in_same_folder)
     mock_other_dir = mocker.MagicMock(name='other_dir')
-    mocker.patch(
-        'tests.sample.code.tested_module.other_dir', new=mock_other_dir)
+    mocker.patch('tests.sample.code.tested_module.other_dir',
+                 new=mock_other_dir)
     mock_process_and_zip = mocker.MagicMock(name='process_and_zip')
-    mocker.patch(
-        'tests.sample.code.tested_module.process_and_zip',
-        new=mock_process_and_zip)
+    mocker.patch('tests.sample.code.tested_module.process_and_zip',
+                 new=mock_process_and_zip)
     mock_rm_alias = mocker.MagicMock(name='rm_alias')
     mocker.patch('tests.sample.code.tested_module.rm_alias', new=mock_rm_alias)
     mock_rm_direct = mocker.MagicMock(name='rm_direct')
-    mocker.patch(
-        'tests.sample.code.tested_module.rm_direct', new=mock_rm_direct)
+    mocker.patch('tests.sample.code.tested_module.rm_direct',
+                 new=mock_rm_direct)
     mock_second_dir = mocker.MagicMock(name='second_dir')
-    mocker.patch(
-        'tests.sample.code.tested_module.second_dir', new=mock_second_dir)
+    mocker.patch('tests.sample.code.tested_module.second_dir',
+                 new=mock_second_dir)
 
-    yield MocksFunctionsOnlyCollection(
-        mock_add, mock_append_to_cwd, mock_are_in_same_folder, mock_other_dir,
-        mock_rm_alias, mock_rm_direct, mock_second_dir)
+    yield MocksFunctionsOnlyCollection(mock_add, mock_append_to_cwd,
+                                       mock_are_in_same_folder, mock_other_dir,
+                                       mock_rm_alias, mock_rm_direct,
+                                       mock_second_dir)
 
 
 @pytest.fixture
@@ -291,8 +289,8 @@ def mock_builtin_only_collection(mocker):
     """
     # mocked functions
     mock_os_remove = mocker.MagicMock(name='os_remove')
-    mocker.patch(
-        'tests.sample.code.tested_module.os_remove', new=mock_os_remove)
+    mocker.patch('tests.sample.code.tested_module.os_remove',
+                 new=mock_os_remove)
 
     yield MocksBuiltinOnlyCollection(mock_os_remove)
 
@@ -312,34 +310,31 @@ def mock_everything_collection(mocker):
     mock_os = mocker.MagicMock(name='os')
     mocker.patch('tests.sample.code.tested_module.os', new=mock_os)
     mock_second_module = mocker.MagicMock(name='second_module')
-    mocker.patch(
-        'tests.sample.code.tested_module.second_module',
-        new=mock_second_module)
+    mocker.patch('tests.sample.code.tested_module.second_module',
+                 new=mock_second_module)
     # mocked functions
     mock_add = mocker.MagicMock(name='add')
     mocker.patch('tests.sample.code.tested_module.add', new=mock_add)
     mock_append_to_cwd = mocker.MagicMock(name='append_to_cwd')
-    mocker.patch(
-        'tests.sample.code.tested_module.append_to_cwd',
-        new=mock_append_to_cwd)
+    mocker.patch('tests.sample.code.tested_module.append_to_cwd',
+                 new=mock_append_to_cwd)
     mock_are_in_same_folder = mocker.MagicMock(name='are_in_same_folder')
-    mocker.patch(
-        'tests.sample.code.tested_module.are_in_same_folder',
-        new=mock_are_in_same_folder)
+    mocker.patch('tests.sample.code.tested_module.are_in_same_folder',
+                 new=mock_are_in_same_folder)
     mock_other_dir = mocker.MagicMock(name='other_dir')
-    mocker.patch(
-        'tests.sample.code.tested_module.other_dir', new=mock_other_dir)
+    mocker.patch('tests.sample.code.tested_module.other_dir',
+                 new=mock_other_dir)
     mock_rm_alias = mocker.MagicMock(name='rm_alias')
     mocker.patch('tests.sample.code.tested_module.rm_alias', new=mock_rm_alias)
     mock_rm_direct = mocker.MagicMock(name='rm_direct')
-    mocker.patch(
-        'tests.sample.code.tested_module.rm_direct', new=mock_rm_direct)
+    mocker.patch('tests.sample.code.tested_module.rm_direct',
+                 new=mock_rm_direct)
     mock_second_dir = mocker.MagicMock(name='second_dir')
-    mocker.patch(
-        'tests.sample.code.tested_module.second_dir', new=mock_second_dir)
+    mocker.patch('tests.sample.code.tested_module.second_dir',
+                 new=mock_second_dir)
     mock_os_remove = mocker.MagicMock(name='os_remove')
-    mocker.patch(
-        'tests.sample.code.tested_module.os_remove', new=mock_os_remove)
+    mocker.patch('tests.sample.code.tested_module.os_remove',
+                 new=mock_os_remove)
 
     yield MocksAllCollection(mock_os, mock_second_module, mock_add,
                              mock_append_to_cwd, mock_are_in_same_folder,
@@ -540,7 +535,7 @@ def test_generate_asserts_are_in_same_folder_args(mock_everything_collection):
     assert 'assert 1 == mock_are_in_same_folder.call_count\n' \
            "mock_are_in_same_folder.assert_called_once_with(" \
            "'/some/path/file1.txt', '/some/path/file2.txt')\n" == generated
-    exec (generated)  # verify the validity of assertions
+    exec(generated)  # verify the validity of assertions
 
 
 def test_generate_asserts_rename_argument(mock_everything_collection):
@@ -570,7 +565,7 @@ def test_generate_asserts_mocks_were_not_called(mock_everything_collection):
     for mocked in mock_everything_collection:
         generated = mock_autogen.generator.generate_asserts(mocked)
         assert "mocked.assert_not_called()" == generated
-        exec (generated)
+        exec(generated)
 
 
 def test_generate_asserts_are_in_same_folder_kwargs(
@@ -585,7 +580,7 @@ def test_generate_asserts_are_in_same_folder_kwargs(
            "mock_are_in_same_folder.assert_called_once_with(" \
            "path1='/some/path/file1.txt', " \
            "path2='/some/path/file2.txt')\n" == generated
-    exec (generated)  # verify the validity of assertions
+    exec(generated)  # verify the validity of assertions
 
 
 def test_generate_asserts_are_in_same_folder_mix_args_kwargs(
@@ -600,7 +595,7 @@ def test_generate_asserts_are_in_same_folder_mix_args_kwargs(
            "mock_are_in_same_folder.assert_called_once_with(" \
            "'/some/path/file1.txt', " \
            "path2='/some/path/file2.txt')\n" == generated
-    exec (generated)  # verify the validity of assertions
+    exec(generated)  # verify the validity of assertions
 
 
 def test_generate_asserts_rm_alias_builtin_only(mock_builtin_only_collection):
@@ -611,7 +606,7 @@ def test_generate_asserts_rm_alias_builtin_only(mock_builtin_only_collection):
     assert "assert 1 == mock_os_remove.call_count\n" \
            "mock_os_remove.assert_called_once_with('/some/path/file1.txt')\n" \
            == generated
-    exec (generated)  # verify the validity of assertions
+    exec(generated)  # verify the validity of assertions
 
 
 def test_generate_asserts_append_to_cwd_builtin_only(
@@ -646,7 +641,7 @@ def test_generate_asserts_append_to_cwd_builtin_only_mocked_cwd(
     assert "mock_os.getcwd.assert_called_once_with()\n" \
            "mock_os.path.join.assert_called_once_with" \
            "('/some/pwd', '/some/path/file1.txt')\n" == generated
-    exec (generated)  # verify the validity of assertions
+    exec(generated)  # verify the validity of assertions
 
 
 def test_generate_asserts_add_mix_types(mock_functions_only_collection):
@@ -657,7 +652,7 @@ def test_generate_asserts_add_mix_types(mock_functions_only_collection):
     assert 'assert 1 == mock_add.call_count\n' \
            "mock_add.assert_called_once_with(" \
            "'one', 2)\n" == generated
-    exec (generated)  # verify the validity of assertions
+    exec(generated)  # verify the validity of assertions
 
 
 def test_generate_asserts_add_multiple_calls(mock_functions_only_collection):
@@ -670,7 +665,7 @@ def test_generate_asserts_add_multiple_calls(mock_functions_only_collection):
            'assert 2 == mock_add.call_count\n' \
            "mock_add.assert_has_calls(calls=[call(1, 2)," \
            "call('one', 'two'),])\n" == generated
-    exec (generated)  # verify the validity of assertions
+    exec(generated)  # verify the validity of assertions
 
 
 def test_generate_asserts_context_manager(mock_modules_only_collection):
@@ -688,15 +683,15 @@ def test_generate_asserts_context_manager(mock_modules_only_collection):
            "'in_zip.txt', 'processed foo bar')\n" \
            "mock_zipfile.ZipFile.return_value.__exit__." \
            "assert_called_once_with(None, None, None)\n" == generated
-    exec (generated)  # verify the validity of assertions
+    exec(generated)  # verify the validity of assertions
 
 
 def test_generate_asserts_class(mocker):
     # mocked classes
     mock_FirstClass = mocker.MagicMock(
         name='FirstClass', spec=tests.sample.code.tested_module.FirstClass)
-    mocker.patch(
-        'tests.sample.code.tested_module.FirstClass', new=mock_FirstClass)
+    mocker.patch('tests.sample.code.tested_module.FirstClass',
+                 new=mock_FirstClass)
 
     tests.sample.code.tested_module.use_first_class('20')
 
@@ -705,15 +700,15 @@ def test_generate_asserts_class(mocker):
            "mock_FirstClass.assert_called_once_with('20')\n" \
            "mock_FirstClass.return_value.not_implemented." \
            "assert_called_once_with(None)\n" == generated
-    exec (generated)  # verify the validity of assertions
+    exec(generated)  # verify the validity of assertions
 
 
 def test_generate_asserts_non_overridden_repr(mocker):
     # mocked classes
     mock_FirstClass = mocker.MagicMock(
         name='FirstClass', spec=tests.sample.code.tested_module.FirstClass)
-    mocker.patch(
-        'tests.sample.code.tested_module.FirstClass', new=mock_FirstClass)
+    mocker.patch('tests.sample.code.tested_module.FirstClass',
+                 new=mock_FirstClass)
 
     tests.sample.code.tested_module.use_first_class(
         '20', tests.sample.code.tested_module.SecondClass(42))
@@ -746,8 +741,8 @@ def test_generate_asserts_class_static(mocker):
             MockedSecondClass.instances[-1].__class__ = MockedSecondClass
             return MockedSecondClass.instances[-1]
 
-    mocker.patch(
-        'tests.sample.code.tested_module.SecondClass', new=MockedSecondClass)
+    mocker.patch('tests.sample.code.tested_module.SecondClass',
+                 new=MockedSecondClass)
 
     tests.sample.code.tested_module.use_second_class_static('20')
 
@@ -790,8 +785,8 @@ def test_class_static_objects_behave_the_same(mocker):
             MockedSecondClass.instances[-1].__class__ = MockedSecondClass
             return MockedSecondClass.instances[-1]
 
-    mocker.patch(
-        'tests.sample.code.tested_module.SecondClass', new=MockedSecondClass)
+    mocker.patch('tests.sample.code.tested_module.SecondClass',
+                 new=MockedSecondClass)
 
     second = tests.sample.code.tested_module.SecondClass('20')
     second.not_implemented()
@@ -810,7 +805,7 @@ def test_referenced_class(mock_classes_only_collection):
 
 def test_mock_object_instance(mocker):
     first = tests.sample.code.tested_module.FirstClass('20')
-    exec (MOCKED_METHODS)  # mocks all the methods
+    exec(MOCKED_METHODS)  # mocks all the methods
 
     first.not_implemented()  # would have raised exception otherwise
     first.not_implemented.assert_called_once_with()
@@ -829,7 +824,7 @@ def test_mock_object_class_direct(mocker):
         mock_classes=False,
         mock_referenced_classes=False,
         mock_classes_static=False)
-    exec (generated_mocks_class)
+    exec(generated_mocks_class)
 
     first_class_instance = first_class(42)
     first_class_instance.not_implemented('some param')
@@ -849,8 +844,48 @@ def test_mock_object_class_indirect(mocker):
         mock_classes=False,
         mock_referenced_classes=False,
         mock_classes_static=False)
-    exec (generated_mocks_class)
+    exec(generated_mocks_class)
 
     first_class_instance = tests.sample.code.tested_module.FirstClass(42)
     first_class_instance.not_implemented('some param')
     first_class_instance.not_implemented.assert_called_once_with('some param')
+
+
+@pytest.mark.parametrize('static', [True, False])
+def test_generate_mocks_mocked_class_equals_to_module(static):
+    module = tests.sample.code.second_module
+    single_class = module.SingleClassInModule
+
+    generated_mocks_module = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        module,
+        name='some_name',
+        mock_modules=False,
+        mock_functions=False,
+        mock_builtin=False,
+        mock_classes=True,
+        mock_referenced_classes=False,
+        mock_classes_static=static)
+
+    generated_mocks_class = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        single_class,
+        name='some_name',
+        mock_modules=False,
+        mock_functions=False,
+        mock_builtin=False,
+        mock_classes=True,
+        mock_referenced_classes=False,
+        mock_classes_static=static)
+
+    assert generated_mocks_module == generated_mocks_class
+
+
+def test_generate_mocks_invalid_framework():
+    with pytest.raises(ValueError):
+        mock_autogen.generator.generate_mocks('unittest', tests.sample.code)
+
+
+def test_generate_asserts_invalid_object():
+    with pytest.raises(TypeError):
+        mock_autogen.generator.generate_asserts('not a mock')
