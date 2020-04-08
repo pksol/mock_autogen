@@ -10,4 +10,4 @@ jobs:
     - name: run YAPF to test if python code is correctly formatted
       uses: AlexanderMelde/yapf-action@master
       with:
-        args: --verbose
+        args: --verbose --exclude '**/tests/**' --exclude  '**/venv/**' --exclude  '**/build/**' --exclude  '**/.eggs/**'
