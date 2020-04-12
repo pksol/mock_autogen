@@ -21,7 +21,6 @@ jobs:
       - name: Run pytest
         uses: fylein/python-pytest-github-action@v2
         with:
-          args: pip3 install -r requirements.txt && pytest tests -vvv
-
-
-
+          args: |
+            pip3 install -r requirements.txt &&
+            pytest tests -vvv
