@@ -1,4 +1,9 @@
 # Mock Generator
+![](https://github.com/pksol/mock_autogen/workflows/CI/badge.svg?branch=master)
+![](https://img.shields.io/pypi/v/mock-generator.svg)
+![](https://img.shields.io/pypi/dm/mock-generator.svg)
+![](https://img.shields.io/pypi/l/mock-generator.svg)
+
 A tool to generate the basic mocks and asserts for faster unit testing. 
 
 ## Introduction
