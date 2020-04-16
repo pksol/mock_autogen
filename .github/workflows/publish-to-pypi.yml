@@ -1,0 +1,28 @@
+name: Publish python distribution to PyPI
+on: push
+
+jobs:
+  build-andn-publish:
+    name: Build and publish python distribution to PyPI
+    runs-on: ubuntu-18.04
+    continue-on-error: true
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2.1.0
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: Create distribution
+        run: python setup.py sdist bdist_wheel
+      - name: Publish distribution to Test PyPI
+        uses: pypa/gh-action-pypi-publish@v1.1.0
+        with:
+          password: ${{ secrets.test_pypi_password }}
+          repository_url: https://test.pypi.org/legacy/
+        continue-on-error: true
+      - name: Publish tags to PyPI
+        if: startsWith(github.event.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@v1.1.0
+        with:
+          password: ${{ secrets.pypi_password }}
