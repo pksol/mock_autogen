@@ -3,6 +3,8 @@ from setuptools import setup, find_packages
 
 HERE = pathlib.Path(__file__).parent
 README = (HERE / "README.md").read_text()
+INSTALL_REQUIRES = (HERE / "requirements.txt").read_text().splitlines()
+TESTS_REQUIRE = (HERE / "test-requirements.txt").read_text().splitlines()[1:]
 
 # This call to setup() does all the work
 setup(name="mock-generator",
@@ -25,7 +27,7 @@ setup(name="mock-generator",
           "Operating System :: OS Independent",
       ],
       packages=find_packages(),
-      install_requires=["mock"],
+      install_requires=INSTALL_REQUIRES,
       setup_requires=["pytest-runner"],
-      tests_require=["pytest", "pytest-mock"],
+      tests_require=TESTS_REQUIRE,
       test_suite="tests")

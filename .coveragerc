@@ -1,0 +1,3 @@
+[run]
+source = mock_autogen
+omit = ./venv/*,*tests*, setup.py
