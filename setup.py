@@ -28,6 +28,6 @@ setup(name="mock-generator",
       ],
       packages=find_packages(),
       install_requires=INSTALL_REQUIRES,
-      setup_requires=["pytest-runner"],
+      setup_requires=["wheel", "pytest-runner"],
       tests_require=TESTS_REQUIRE,
       test_suite="tests")
