@@ -1,4 +1,5 @@
 import re
+import sys
 from collections import namedtuple
 
 import pytest
@@ -11,6 +12,9 @@ MOCKED_MODULES_HEADER = "# mocked modules\n"
 MOCKED_MODULES = "mock_os = mocker.MagicMock(name='os')\n" \
                  "mocker.patch('tests.sample.code.tested_module.os', " \
                  "new=mock_os)\n" \
+                 "mock_random = mocker.MagicMock(name='random')\n" \
+                 "mocker.patch('tests.sample.code.tested_module.random', " \
+                 "new=mock_random)\n" \
                  "mock_second_module = " \
                  "mocker.MagicMock(name='second_module')\n" \
                  "mocker.patch('tests.sample.code.tested_module." \
@@ -31,10 +35,28 @@ MOCKED_FUNCTIONS = "mock_add = mocker.MagicMock(name='add')\n" \
                    "mocker.MagicMock(name='are_in_same_folder')\n" \
                    "mocker.patch('tests.sample.code.tested_module." \
                    "are_in_same_folder', new=mock_are_in_same_folder)\n" \
-                   "mock_get_current_time = mocker.MagicMock" \
-                   "(name='get_current_time')\n" \
+                   "mock_base_64_partial_functions = " \
+                   "mocker.MagicMock(name='base_64_partial_functions')\n" \
+                   "mocker.patch('tests.sample.code." \
+                   "tested_module.base_64_partial_functions', " \
+                   "new=mock_base_64_partial_functions)\n" \
+                   "mock_base_64_whole_modules = " \
+                   "mocker.MagicMock(name='base_64_whole_modules')\n" \
+                   "mocker.patch('tests.sample.code." \
+                   "tested_module.base_64_whole_modules', " \
+                   "new=mock_base_64_whole_modules)\n" \
+                   "mock_get_current_time = " \
+                   "mocker.MagicMock(name='get_current_time')\n" \
                    "mocker.patch('tests.sample.code.tested_module." \
                    "get_current_time', new=mock_get_current_time)\n" \
+                   "mock_get_random_number = mocker.MagicMock" \
+                   "(name='get_random_number')\n" \
+                   "mocker.patch('tests.sample.code.tested_module." \
+                   "get_random_number', new=mock_get_random_number)\n" \
+                   "mock_os_remove_wrap = mocker.MagicMock(" \
+                   "name='os_remove_wrap')\n" \
+                   "mocker.patch('tests.sample.code.tested_module." \
+                   "os_remove_wrap', new=mock_os_remove_wrap)\n" \
                    "mock_other_dir = mocker.MagicMock(name='other_dir')\n" \
                    "mocker.patch('tests.sample.code.tested_module." \
                    "other_dir', new=mock_other_dir)\n" \
@@ -45,9 +67,6 @@ MOCKED_FUNCTIONS = "mock_add = mocker.MagicMock(name='add')\n" \
                    "mock_rm_alias = mocker.MagicMock(name='rm_alias')\n" \
                    "mocker.patch('tests.sample.code.tested_module." \
                    "rm_alias', new=mock_rm_alias)\n" \
-                   "mock_rm_direct = mocker.MagicMock(name='rm_direct')\n" \
-                   "mocker.patch('tests.sample.code.tested_module." \
-                   "rm_direct', new=mock_rm_direct)\n" \
                    "mock_second_dir = mocker.MagicMock(name='second_dir')\n" \
                    "mocker.patch('tests.sample.code.tested_module." \
                    "second_dir', new=mock_second_dir)\n" \
@@ -65,7 +84,10 @@ MOCKED_BUILTIN = "mock_os_remove = mocker.MagicMock(name='os_remove')\n" \
                  "new=mock_os_remove)\n"
 
 MOCKED_METHODS_HEADER = "# mocked methods\n"
-MOCKED_METHODS = "mocker.patch.object(first, 'not_implemented')\n"
+MOCKED_METHODS = "mocker.patch.object(first, 'increase_class_counter')\n" \
+ "mocker.patch.object(first, 'increase_global_counter')\n" \
+ "mocker.patch.object(first, 'not_implemented')\n" \
+ "mocker.patch.object(first, 'using_not_implemented')\n"
 
 MOCKED_CLASSES_HEADER = "# mocked classes\n"
 MOCKED_CLASSES = "mock_FirstClass = mocker.MagicMock(name='FirstClass', " \
@@ -135,81 +157,79 @@ class Mockeddt(metaclass=MockeddtMeta):
 mocker.patch('tests.sample.code.tested_module.dt', new=Mockeddt)
 """
 
-PREPARE_ASSERTS_CALLS_HEADER = "# calls to generate_asserts, put this after the 'act'\nimport mock_autogen.generator\n"
+PREPARE_ASSERTS_CALLS_HEADER = "# calls to generate_asserts, put this after the 'act'\nimport mock_autogen\n"
 
-PREPARE_ASSERTS_CALLS_DEFAULT = """print(mock_autogen.generator.generate_asserts(mock_os, name='mock_os'))
-print(mock_autogen.generator.generate_asserts(mock_second_module, name='mock_second_module'))
-print(mock_autogen.generator.generate_asserts(mock_zipfile, name='mock_zipfile'))
-print(mock_autogen.generator.generate_asserts(mock_os_remove, name='mock_os_remove'))
-print(mock_autogen.generator.generate_asserts(mock_dt, name='mock_dt'))
+PREPARE_ASSERTS_CALLS_DEFAULT = """mock_autogen.generate_asserts(mock_os, name='mock_os')
+mock_autogen.generate_asserts(mock_random, name='mock_random')
+mock_autogen.generate_asserts(mock_second_module, name='mock_second_module')
+mock_autogen.generate_asserts(mock_zipfile, name='mock_zipfile')
+mock_autogen.generate_asserts(mock_os_remove, name='mock_os_remove')
+mock_autogen.generate_asserts(mock_dt, name='mock_dt')
 """
 
-PREPARE_ASSERTS_CALLS_ALL = """print(mock_autogen.generator.generate_asserts(mock_os, name='mock_os'))
-print(mock_autogen.generator.generate_asserts(mock_second_module, name='mock_second_module'))
-print(mock_autogen.generator.generate_asserts(mock_zipfile, name='mock_zipfile'))
-print(mock_autogen.generator.generate_asserts(mock_add, name='mock_add'))
-print(mock_autogen.generator.generate_asserts(mock_append_to_cwd, name='mock_append_to_cwd'))
-print(mock_autogen.generator.generate_asserts(mock_are_in_same_folder, name='mock_are_in_same_folder'))
-print(mock_autogen.generator.generate_asserts(mock_get_current_time, name='mock_get_current_time'))
-print(mock_autogen.generator.generate_asserts(mock_other_dir, name='mock_other_dir'))
-print(mock_autogen.generator.generate_asserts(mock_process_and_zip, name='mock_process_and_zip'))
-print(mock_autogen.generator.generate_asserts(mock_rm_alias, name='mock_rm_alias'))
-print(mock_autogen.generator.generate_asserts(mock_rm_direct, name='mock_rm_direct'))
-print(mock_autogen.generator.generate_asserts(mock_second_dir, name='mock_second_dir'))
-print(mock_autogen.generator.generate_asserts(mock_use_first_class, name='mock_use_first_class'))
-print(mock_autogen.generator.generate_asserts(mock_use_second_class_static, name='mock_use_second_class_static'))
-print(mock_autogen.generator.generate_asserts(mock_os_remove, name='mock_os_remove'))
-print(mock_autogen.generator.generate_asserts(mock_FirstClass, name='mock_FirstClass'))
-print(mock_autogen.generator.generate_asserts(mock_SecondClass, name='mock_SecondClass'))
-print(mock_autogen.generator.generate_asserts(mock_dt, name='mock_dt'))
+PREPARE_ASSERTS_CALLS_ALL = """mock_autogen.generate_asserts(mock_os, name='mock_os')
+mock_autogen.generate_asserts(mock_random, name='mock_random')
+mock_autogen.generate_asserts(mock_second_module, name='mock_second_module')
+mock_autogen.generate_asserts(mock_zipfile, name='mock_zipfile')
+mock_autogen.generate_asserts(mock_add, name='mock_add')
+mock_autogen.generate_asserts(mock_append_to_cwd, name='mock_append_to_cwd')
+mock_autogen.generate_asserts(mock_are_in_same_folder, name='mock_are_in_same_folder')
+mock_autogen.generate_asserts(mock_base_64_partial_functions, name='mock_base_64_partial_functions')
+mock_autogen.generate_asserts(mock_base_64_whole_modules, name='mock_base_64_whole_modules')
+mock_autogen.generate_asserts(mock_get_current_time, name='mock_get_current_time')
+mock_autogen.generate_asserts(mock_get_random_number, name='mock_get_random_number')
+mock_autogen.generate_asserts(mock_os_remove_wrap, name='mock_os_remove_wrap')
+mock_autogen.generate_asserts(mock_other_dir, name='mock_other_dir')
+mock_autogen.generate_asserts(mock_process_and_zip, name='mock_process_and_zip')
+mock_autogen.generate_asserts(mock_rm_alias, name='mock_rm_alias')
+mock_autogen.generate_asserts(mock_second_dir, name='mock_second_dir')
+mock_autogen.generate_asserts(mock_use_first_class, name='mock_use_first_class')
+mock_autogen.generate_asserts(mock_use_second_class_static, name='mock_use_second_class_static')
+mock_autogen.generate_asserts(mock_os_remove, name='mock_os_remove')
+mock_autogen.generate_asserts(mock_FirstClass, name='mock_FirstClass')
+mock_autogen.generate_asserts(mock_SecondClass, name='mock_SecondClass')
+mock_autogen.generate_asserts(mock_dt, name='mock_dt')
 """
+
+MOCKED_WARNINGS_HEADER = "# warnings\n"
 
 MocksAllCollection = namedtuple(
     'MocksAllCollection', 'os, second_module, add, append_to_cwd, '
     'are_in_same_folder, other_dir, '
-    'rm_alias, rm_direct, second_dir, os_remove')
+    'rm_alias, os_remove_wrap, second_dir, os_remove')
 
 MocksModulesOnlyCollection = namedtuple('MocksModulesOnlyCollection',
                                         'os, second_module, zipfile')
 
-MocksClassesOnlyCollection = namedtuple('MocksClassesOnlyCollection',
-                                        'first, second, datetime')
+MocksReferencedClassesOnlyCollection = namedtuple('MocksClassesOnlyCollection',
+                                                  'datetime')
 
 MocksFunctionsOnlyCollection = namedtuple(
     'MocksFunctionsOnlyCollection', 'add, append_to_cwd, '
     'are_in_same_folder, '
     'other_dir, rm_alias, '
-    'rm_direct, second_dir')
+    'os_remove_wrap, second_dir')
 
 MocksBuiltinOnlyCollection = namedtuple('MocksAllCollection', 'os_remove')
 
 
 @pytest.fixture
-def mock_classes_only_collection(mocker):
+def mock_referenced_classes_only_collection(mocker):
     """
-    The mocks are taken from `test_generate_mocks_modules_only` :)
+    The mocks are taken from `test_generate_mocks_referenced_classes_only` :)
 
     Args:
         mocker (pytest.fixture): the mocker fixture
 
     Yields:
-        MocksClassesOnlyCollection: The generated mocks.
+        MocksReferencedClassesOnlyCollection: The generated mocks.
     """
     # mocked classes
-    mock_FirstClass = mocker.MagicMock(
-        name='FirstClass', spec=tests.sample.code.tested_module.FirstClass)
-    mocker.patch('tests.sample.code.tested_module.FirstClass',
-                 new=mock_FirstClass)
-    mock_SecondClass = mocker.MagicMock(
-        name='SecondClass', spec=tests.sample.code.tested_module.SecondClass)
-    mocker.patch('tests.sample.code.tested_module.SecondClass',
-                 new=mock_SecondClass)
     mock_dt = mocker.MagicMock(name='dt',
                                spec=tests.sample.code.tested_module.dt)
     mocker.patch('tests.sample.code.tested_module.dt', new=mock_dt)
 
-    yield MocksClassesOnlyCollection(mock_FirstClass, mock_SecondClass,
-                                     mock_dt)
+    yield MocksReferencedClassesOnlyCollection(mock_dt)
 
 
 @pytest.fixture
@@ -263,16 +283,16 @@ def mock_functions_only_collection(mocker):
                  new=mock_process_and_zip)
     mock_rm_alias = mocker.MagicMock(name='rm_alias')
     mocker.patch('tests.sample.code.tested_module.rm_alias', new=mock_rm_alias)
-    mock_rm_direct = mocker.MagicMock(name='rm_direct')
-    mocker.patch('tests.sample.code.tested_module.rm_direct',
-                 new=mock_rm_direct)
+    mock_os_remove_wrap = mocker.MagicMock(name='os_remove_wrap')
+    mocker.patch('tests.sample.code.tested_module.os_remove_wrap',
+                 new=mock_os_remove_wrap)
     mock_second_dir = mocker.MagicMock(name='second_dir')
     mocker.patch('tests.sample.code.tested_module.second_dir',
                  new=mock_second_dir)
 
     yield MocksFunctionsOnlyCollection(mock_add, mock_append_to_cwd,
                                        mock_are_in_same_folder, mock_other_dir,
-                                       mock_rm_alias, mock_rm_direct,
+                                       mock_rm_alias, mock_os_remove_wrap,
                                        mock_second_dir)
 
 
@@ -326,9 +346,9 @@ def mock_everything_collection(mocker):
                  new=mock_other_dir)
     mock_rm_alias = mocker.MagicMock(name='rm_alias')
     mocker.patch('tests.sample.code.tested_module.rm_alias', new=mock_rm_alias)
-    mock_rm_direct = mocker.MagicMock(name='rm_direct')
-    mocker.patch('tests.sample.code.tested_module.rm_direct',
-                 new=mock_rm_direct)
+    mock_os_remove_wrap = mocker.MagicMock(name='os_remove_wrap')
+    mocker.patch('tests.sample.code.tested_module.os_remove_wrap',
+                 new=mock_os_remove_wrap)
     mock_second_dir = mocker.MagicMock(name='second_dir')
     mocker.patch('tests.sample.code.tested_module.second_dir',
                  new=mock_second_dir)
@@ -338,8 +358,9 @@ def mock_everything_collection(mocker):
 
     yield MocksAllCollection(mock_os, mock_second_module, mock_add,
                              mock_append_to_cwd, mock_are_in_same_folder,
-                             mock_other_dir, mock_rm_alias, mock_rm_direct,
-                             mock_second_dir, mock_os_remove)
+                             mock_other_dir, mock_rm_alias,
+                             mock_os_remove_wrap, mock_second_dir,
+                             mock_os_remove)
 
 
 def test_generate_mocks_modules_only():
@@ -463,7 +484,7 @@ def test_generate_mocks_referenced_classes_static_only():
         prepare_asserts_calls=False)
 
     assert MOCKED_CLASSES_HEADER + MOCKED_REFERENCED_CLASSES_STATIC \
-        == generated_mocks
+           == generated_mocks
 
 
 def test_generate_mocks_prepare_asserts_calls_only():
@@ -494,10 +515,10 @@ def test_generate_mocks_all():
         prepare_asserts_calls=True)
 
     assert MOCKED_MODULES_HEADER + MOCKED_MODULES + \
-        MOCKED_FUNCTIONS_HEADER + MOCKED_FUNCTIONS + MOCKED_BUILTIN + \
-        MOCKED_CLASSES_HEADER + MOCKED_CLASSES + MOCKED_REFERENCED_CLASSES + \
-        PREPARE_ASSERTS_CALLS_HEADER + PREPARE_ASSERTS_CALLS_ALL \
-        == generated_mocks
+           MOCKED_FUNCTIONS_HEADER + MOCKED_FUNCTIONS + MOCKED_BUILTIN + \
+           MOCKED_CLASSES_HEADER + MOCKED_CLASSES + MOCKED_REFERENCED_CLASSES + \
+           PREPARE_ASSERTS_CALLS_HEADER + PREPARE_ASSERTS_CALLS_ALL \
+           == generated_mocks
 
 
 def test_generate_mocks_default():
@@ -506,23 +527,297 @@ def test_generate_mocks_default():
         tests.sample.code.tested_module)
 
     assert MOCKED_MODULES_HEADER + MOCKED_MODULES + \
-        MOCKED_FUNCTIONS_HEADER + MOCKED_BUILTIN + \
-        MOCKED_CLASSES_HEADER + MOCKED_REFERENCED_CLASSES + \
-        PREPARE_ASSERTS_CALLS_HEADER + PREPARE_ASSERTS_CALLS_DEFAULT == generated_mocks
+           MOCKED_FUNCTIONS_HEADER + MOCKED_BUILTIN + \
+           MOCKED_CLASSES_HEADER + MOCKED_REFERENCED_CLASSES + \
+           PREPARE_ASSERTS_CALLS_HEADER + PREPARE_ASSERTS_CALLS_DEFAULT == generated_mocks
 
 
-def test_generate_mocks_function():
+def _extract_warnings_generated_mocks_and_generated_asserts(expected):
+    warnings = []
+    generated_mocks = []
+    generated_asserts = []
+    inside_warnings = False
+    inside_mocks = False
+    inside_asserts = False
+    for line in expected.splitlines():
+        if line == MOCKED_WARNINGS_HEADER.rstrip():
+            inside_warnings = True
+        if line == MOCKED_FUNCTIONS_HEADER.rstrip():
+            inside_warnings = False
+            inside_mocks = True
+        if line == PREPARE_ASSERTS_CALLS_HEADER.splitlines()[0]:
+            inside_mocks = False
+            inside_asserts = True
+        if inside_warnings:
+            warnings.append(line)
+        if inside_mocks:
+            generated_mocks.append(line)
+        if inside_asserts:
+            generated_asserts.append(line)
+    return warnings, generated_mocks, generated_asserts
+
+
+def test_generate_mocks_function_inner_imports(mocker):
+    wo_mock = tests.sample.code.tested_module.base_64_whole_modules("my msg1")
+    assert re.match(r"^MY MSG1.*False$", wo_mock)  # without mocks
+
+    expected = """# warnings
+# could not convert a function call into a mock on node:
+#  (message.upper() + suffix). \
+#          encode('ascii')
+# mocked functions
+mock_randint = mocker.MagicMock(name='randint')
+mocker.patch('tests.sample.code.tested_module.random.randint', new=mock_randint)
+mock_get_random_number = mocker.MagicMock(name='get_random_number')
+mocker.patch('tests.sample.code.tested_module.get_random_number', new=mock_get_random_number)
+mock_str = mocker.MagicMock(name='str')
+mocker.patch('tests.sample.code.tested_module.str', new=mock_str)
+mock_isfile = mocker.MagicMock(name='isfile')
+mocker.patch('tests.sample.code.tested_module.os.path.isfile', new=mock_isfile)
+mock_b64encode = mocker.MagicMock(name='b64encode')
+mocker.patch('base64.b64encode', new=mock_b64encode)
+mock_b64decode = mocker.MagicMock(name='b64decode')
+mocker.patch('base64.b64decode', new=mock_b64decode)
+# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_randint, name='mock_randint')
+mock_autogen.generate_asserts(mock_get_random_number, name='mock_get_random_number')
+mock_autogen.generate_asserts(mock_str, name='mock_str')
+mock_autogen.generate_asserts(mock_isfile, name='mock_isfile')
+mock_autogen.generate_asserts(mock_b64encode, name='mock_b64encode')
+mock_autogen.generate_asserts(mock_b64decode, name='mock_b64decode')
+"""
+
+    expected_warnings, expected_mocks, expected_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(expected)
+
+    generated = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        tests.sample.code.tested_module.base_64_whole_modules)
+
+    generated_warnings, generated_mocks, generated_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(generated)
+
+    # don't compare warning code since python version might be less than 3.8
+    assert expected_warnings[0:2] == generated_warnings[0:2]
+    assert expected_mocks == generated_mocks
+    assert expected_asserts == generated_asserts
+
+    # verify the validity of generated mocks code
+    exec(generated +
+         "\nmock_b64decode.return_value.decode.return_value = '20'")
+
+    w_mock = tests.sample.code.tested_module.base_64_whole_modules("my msg2")
+    assert "20" == w_mock
+
+
+def test_generate_mocks_function_inner_imports_partial_functions(mocker):
+    wo_mock = tests.sample.code.tested_module.base_64_partial_functions(
+        "my msg1")
+    assert re.match(r"^MY MSG1.*False$", wo_mock)  # without mocks
+
+    expected = """# warnings
+# could not convert a function call into a mock on node:
+#  (message.upper() + suffix). \
+#          encode('ascii')
+# mocked functions
+mock_randint = mocker.MagicMock(name='randint')
+mocker.patch('tests.sample.code.tested_module.random.randint', new=mock_randint)
+mock_get_random_number = mocker.MagicMock(name='get_random_number')
+mocker.patch('tests.sample.code.tested_module.get_random_number', new=mock_get_random_number)
+mock_str = mocker.MagicMock(name='str')
+mocker.patch('tests.sample.code.tested_module.str', new=mock_str)
+mock_isfile = mocker.MagicMock(name='isfile')
+mocker.patch('tests.sample.code.tested_module.os.path.isfile', new=mock_isfile)
+mock_b64encode = mocker.MagicMock(name='b64encode')
+mocker.patch('base64.b64encode', new=mock_b64encode)
+mock_b64decode = mocker.MagicMock(name='b64decode')
+mocker.patch('base64.b64decode', new=mock_b64decode)
+# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_randint, name='mock_randint')
+mock_autogen.generate_asserts(mock_get_random_number, name='mock_get_random_number')
+mock_autogen.generate_asserts(mock_str, name='mock_str')
+mock_autogen.generate_asserts(mock_isfile, name='mock_isfile')
+mock_autogen.generate_asserts(mock_b64encode, name='mock_b64encode')
+mock_autogen.generate_asserts(mock_b64decode, name='mock_b64decode')
+"""
+
+    expected_warnings, expected_mocks, expected_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(expected)
+
+    generated = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        tests.sample.code.tested_module.base_64_partial_functions)
+
+    generated_warnings, generated_mocks, generated_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(generated)
+
+    # don't compare warning code since python version might be less than 3.8
+    assert expected_warnings[0:2] == generated_warnings[0:2]
+    assert expected_mocks == generated_mocks
+    assert expected_asserts == generated_asserts
+
+    # verify the validity of generated mocks code
+    exec(generated +
+         "\nmock_b64decode.return_value.decode.return_value = '20'")
+
+    w_mock = tests.sample.code.tested_module.base_64_partial_functions(
+        "my msg2")
+    assert "20" == w_mock
+
+
+def test_generate_mocks_method_inner_calls(mocker):
+    global_before = tests.sample.code.tested_module.global_counter
+    prop_before = tests.sample.code.tested_module.FirstClass.prop
+    first = tests.sample.code.tested_module.FirstClass('20')
+    expected = """# warnings
+# could not convert a function call into a mock on node:
+#  (suffix.upper() + suffix).encode('ascii')
+# mocked functions
+mock_randint = mocker.MagicMock(name='randint')
+mocker.patch('tests.sample.code.tested_module.random.randint', new=mock_randint)
+mock_get_random_number = mocker.MagicMock(name='get_random_number')
+mocker.patch('tests.sample.code.tested_module.get_random_number', new=mock_get_random_number)
+mock_str = mocker.MagicMock(name='str')
+mocker.patch('tests.sample.code.tested_module.str', new=mock_str)
+mock_isfile = mocker.MagicMock(name='isfile')
+mocker.patch('tests.sample.code.tested_module.os.path.isfile', new=mock_isfile)
+mock_b64encode = mocker.MagicMock(name='b64encode')
+mocker.patch('base64.b64encode', new=mock_b64encode)
+mock_b64decode = mocker.MagicMock(name='b64decode')
+mocker.patch('base64.b64decode', new=mock_b64decode)
+mock_increase_global_counter = mocker.MagicMock(name='increase_global_counter')
+mocker.patch('tests.sample.code.tested_module.FirstClass.increase_global_counter', new=mock_increase_global_counter)
+mock_increase_class_counter = mocker.MagicMock(name='increase_class_counter')
+mocker.patch('tests.sample.code.tested_module.FirstClass.increase_class_counter', new=mock_increase_class_counter)
+mock_not_implemented = mocker.MagicMock(name='not_implemented')
+mocker.patch('tests.sample.code.tested_module.FirstClass.not_implemented', new=mock_not_implemented)
+# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_randint, name='mock_randint')
+mock_autogen.generate_asserts(mock_get_random_number, name='mock_get_random_number')
+mock_autogen.generate_asserts(mock_str, name='mock_str')
+mock_autogen.generate_asserts(mock_isfile, name='mock_isfile')
+mock_autogen.generate_asserts(mock_b64encode, name='mock_b64encode')
+mock_autogen.generate_asserts(mock_b64decode, name='mock_b64decode')
+mock_autogen.generate_asserts(mock_increase_global_counter, name='mock_increase_global_counter')
+mock_autogen.generate_asserts(mock_increase_class_counter, name='mock_increase_class_counter')
+mock_autogen.generate_asserts(mock_not_implemented, name='mock_not_implemented')
+"""
+    expected_warnings, expected_mocks, expected_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(expected)
+
+    generated = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        first.using_not_implemented)
+
+    generated_warnings, generated_mocks, generated_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(generated)
+
+    # don't compare warning code since python version might be less than 3.8
+    assert expected_warnings[0:2] == generated_warnings[0:2]
+    if sys.version_info >= (3, 8):
+        assert expected_warnings == generated_warnings
+    assert expected_mocks == generated_mocks
+    assert expected_asserts == generated_asserts
+
+    exec(generated)  # verify the validity of generated mocks code
+
+    first.using_not_implemented()
+
+    assert global_before == tests.sample.code.tested_module.global_counter
+    assert prop_before == tests.sample.code.tested_module.FirstClass.prop
+    exec("mock_not_implemented.assert_called_once()")
+
+
+def test_generate_mocks_static_method_inner_calls(mocker):
+    global_before = tests.sample.code.tested_module.global_counter
+    prop_before = tests.sample.code.tested_module.FirstClass.prop
+    first = tests.sample.code.tested_module.FirstClass('20')
+    expected = """# mocked functions
+mock_get_random_number = mocker.MagicMock(name='get_random_number')
+mocker.patch('tests.sample.code.tested_module.get_random_number', new=mock_get_random_number)
+# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_get_random_number, name='mock_get_random_number')
+"""
+    expected_warnings, expected_mocks, expected_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(expected)
+
     generated_mocks_function = mock_autogen.generator.generate_mocks(
         mock_autogen.generator.MockingFramework.PYTEST_MOCK,
-        tests.sample.code.tested_module.get_current_time,
-        mock_modules=True,
-        mock_functions=True,
-        mock_builtin=True,
-        mock_classes=True,
-        mock_referenced_classes=True,
-        mock_classes_static=True)
+        first.increase_global_counter)
 
-    assert "" == generated_mocks_function  # not supported
+    generated_mocks_function_from_class = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        tests.sample.code.tested_module.FirstClass.increase_global_counter)
+
+    assert generated_mocks_function == generated_mocks_function_from_class
+
+    generated_warnings, generated_mocks, generated_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(generated_mocks_function)
+
+    assert expected_warnings == generated_warnings
+    assert expected_mocks == generated_mocks
+    assert expected_asserts == generated_asserts
+
+    # verify the validity of generated mocks code
+    exec(generated_mocks_function +
+         f"\nmock_get_random_number.return_value = {global_before}")
+
+    first.increase_global_counter()
+
+    assert global_before == tests.sample.code.tested_module.global_counter
+    assert prop_before == tests.sample.code.tested_module.FirstClass.prop
+    exec("mock_get_random_number.assert_called_once()")
+
+
+def test_generate_mocks_class_method_inner_calls(mocker):
+    global_before = tests.sample.code.tested_module.global_counter
+    prop_before = tests.sample.code.tested_module.FirstClass.prop
+    first = tests.sample.code.tested_module.FirstClass('20')
+    expected = """# mocked functions
+mock_get_random_number = mocker.MagicMock(name='get_random_number')
+mocker.patch('tests.sample.code.tested_module.get_random_number', new=mock_get_random_number)
+mock_increase_global_counter = mocker.MagicMock(name='increase_global_counter')
+mocker.patch('tests.sample.code.tested_module.FirstClass.increase_global_counter', new=mock_increase_global_counter)
+# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_get_random_number, name='mock_get_random_number')
+mock_autogen.generate_asserts(mock_increase_global_counter, name='mock_increase_global_counter')
+"""
+    expected_warnings, expected_mocks, expected_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(expected)
+
+    generated_mocks_function = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        first.increase_class_counter)
+
+    generated_mocks_function_from_class = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        tests.sample.code.tested_module.FirstClass.increase_class_counter)
+
+    assert generated_mocks_function == generated_mocks_function_from_class
+
+    generated_warnings, generated_mocks, generated_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(
+            generated_mocks_function)
+
+    assert expected_warnings == generated_warnings
+    assert expected_mocks == generated_mocks
+    assert expected_asserts == generated_asserts
+
+    # verify the validity of generated mocks code
+    exec(generated_mocks_function +
+         f"\nmock_get_random_number.return_value = {prop_before}")
+
+    first.increase_class_counter()
+
+    assert global_before == tests.sample.code.tested_module.global_counter
+    assert prop_before == tests.sample.code.tested_module.FirstClass.prop
+    exec("mock_get_random_number.assert_called_once()")
+    exec("mock_increase_global_counter.assert_called_once()")
 
 
 def test_generate_asserts_are_in_same_folder_args(mock_everything_collection):
@@ -797,8 +1092,8 @@ def test_class_static_objects_behave_the_same(mocker):
     assert isinstance(second, tests.sample.code.tested_module.SecondClass)
 
 
-def test_referenced_class(mock_classes_only_collection):
-    mock_classes_only_collection.datetime.utcnow.return_value = 20
+def test_referenced_class(mock_referenced_classes_only_collection):
+    mock_referenced_classes_only_collection.datetime.utcnow.return_value = 20
     current_time = tests.sample.code.tested_module.get_current_time()
     assert 20 == current_time
 
@@ -889,3 +1184,8 @@ def test_generate_mocks_invalid_framework():
 def test_generate_asserts_invalid_object():
     with pytest.raises(TypeError):
         mock_autogen.generator.generate_asserts('not a mock')
+
+
+def test__single_call_to_generate_asserts():
+    assert "mock_autogen.generate_asserts(mock_name, name='mock_name')\n" == \
+        mock_autogen.generator._single_call_to_generate_asserts("mock_name")
