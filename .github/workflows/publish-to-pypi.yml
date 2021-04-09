@@ -27,7 +27,7 @@ jobs:
           pip uninstall mock-generator
       - name: Perform System tests
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install pip==21.0.1
           pip install -r test-requirements.txt
           pip install -i https://test.pypi.org/simple/ mock-generator
           python -m pytest -vvv -k test_pytest_mocker.py
@@ -55,7 +55,7 @@ jobs:
           pip uninstall mock-generator
       - name: Perform System tests
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install pip==21.0.1
           pip install -r test-requirements.txt
           pip install mock-generator
           python -m pytest -vvv -k test_pytest_mocker.py

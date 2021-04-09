@@ -81,16 +81,15 @@ class TestPytestMocker:
     def test_generate(self, mocker):
         # mocked modules
         mock_mock_autogen = mocker.MagicMock(name='mock_autogen')
-        mocker.patch(
-            'mock_autogen.pytest_mocker.mock_autogen', new=mock_mock_autogen)
+        mocker.patch('mock_autogen.pytest_mocker.mock_autogen',
+                     new=mock_mock_autogen)
 
         # act
-        PytestMocker(
-            mock_autogen.pytest_mocker,
-            name='pytest_mocker').mock_modules().generate()
+        PytestMocker(mock_autogen.pytest_mocker,
+                     name='pytest_mocker').mock_modules().generate()
 
         # assert
-        generated = mock_autogen.generator.generate_asserts(mock_mock_autogen)
+        generated = mock_autogen.generate_asserts(mock_mock_autogen)
         assert re.match(
             r"^mock_mock_autogen.generator.generate_mocks."
             r"assert_called_once_with\(framework=<MagicMock "

@@ -1,4 +1,6 @@
+import ast
 import re
+import textwrap
 import types
 from collections import namedtuple, OrderedDict
 
@@ -8,10 +10,14 @@ import inspect
 import mock as python_mock
 import unittest.mock
 
+from mock_autogen.utils import copy_result_to_clipboard, print_result, safe_travels
+
 MockingFramework = Enum('MockingFramework', 'PYTEST_MOCK')
 CallParameters = namedtuple('CallParameters', 'args, kwargs')
 
 
+@copy_result_to_clipboard
+@print_result
 def generate_mocks(framework,
                    mocked,
                    name='',
@@ -117,6 +123,104 @@ def generate_mocks(framework,
                     t[0] for t in inspect.getmembers(mocked, inspect.isclass)
                     if not t[1].__module__ == mocked.__name__
                 ]))
+    # mocking a function or a method
+    elif inspect.isfunction(mocked) or inspect.ismethod(mocked):
+        outer_module_name = inspect.getmodule(mocked).__name__
+        source_code = textwrap.dedent(inspect.getsource(mocked))
+        tree = ast.parse(source_code)
+        warnings = []  # alert on all the unsupported syntax
+
+        # these are the functions which will be mocked
+        # every item is a tuple of two items: path to function, function name
+        # like: ('tests.sample.code.tested_module.random', 'randint')
+        functions = OrderedDict()  # no need to mock same function called twice
+
+        # keys are names while values are true import paths
+        # this is used to allow mocking dependencies that were renamed,
+        # an example to such rename is an internal import in the UUT function
+        import_mappings = {}
+
+        # ignore all variable function calls:
+        #   if they are parameters or assignments it's hard to know their type,
+        #       so it's hard to mock the right thing
+        #   if they were created by the result of calling a function that would
+        #       be mocked - the user can change or assert for the return_value
+        #       of that original mock
+        ignored_variables = set()
+
+        class FuncLister(ast.NodeVisitor):
+            @safe_travels(warnings, "ignore function arguments", source_code)
+            def visit_FunctionDef(self, node):
+                for i, arg in enumerate(node.args.args + node.args.kwonlyargs +
+                                        [node.args.vararg, node.args.kwarg]):
+                    if arg:
+                        # support 'self', 'cls' by pointing it to the Class
+                        if 0 == i and inspect.ismethod(mocked):
+                            self_var_name = arg.arg
+                            class_name = mocked.__qualname__.split('.', 1)[0]
+                            import_mappings[self_var_name] = \
+                                outer_module_name + '.' + class_name
+                        else:
+                            ignored_variables.add(arg.arg)
+
+            @safe_travels(warnings, "ignore variable assign", source_code)
+            def visit_Assign(self, node):
+                for target in node.targets:
+                    target_assign = _stringify_node_path(target)
+                    ignored_variables.add(target_assign)
+
+            @safe_travels(warnings, "ignore variable annotated assign",
+                          source_code)
+            def visit_AnnAssign(self, node):
+                ignored_variables.add(node.target.id)
+                self.generic_visit(node)
+
+            @safe_travels(warnings, "ignore with variables", source_code)
+            def visit_withitem(self, node):
+                if node.optional_vars:
+                    ignored_variables.add(node.optional_vars.id)
+                self.generic_visit(node)
+
+            @safe_travels(warnings, "add internal import to known mappings",
+                          source_code)
+            def visit_Import(self, node):
+                for name in node.names:
+                    import_mappings[name.asname if name.asname else name.
+                                    name] = name.name
+
+            @safe_travels(warnings,
+                          "add internal import from to known mappings",
+                          source_code)
+            def visit_ImportFrom(self, node):
+                for name in node.names:
+                    import_mappings[name.asname if name.asname else name.
+                                    name] = node.module + "." + name.name
+
+            @safe_travels(warnings, "convert a function call into a mock",
+                          source_code)
+            def visit_Call(self, node):
+                id_and_func_path = _stringify_node_path(node.func).split(
+                    '.', 1)
+                skip_call = id_and_func_path[0] in ignored_variables
+                id_and_func_path[0] = import_mappings.get(
+                    id_and_func_path[0],
+                    outer_module_name + '.' + id_and_func_path[0])
+                replaced_path = ".".join(id_and_func_path)
+                module_path, func_name = replaced_path.rsplit('.', 1)
+                func_qualified_name = (
+                    module_path,
+                    func_name,
+                )
+
+                if not skip_call and func_qualified_name not in functions:
+                    functions[func_qualified_name] = None
+
+        FuncLister().visit(tree)
+        if warnings:
+            warnings.insert(0, "# warnings")
+            warnings[-1] = warnings[-1] + "\n"
+        return "\n".join(warnings) + _pytest_mock_function_generate(
+            functions.keys(), prepare_asserts_calls)
     # we're mocking a regular instance
     else:
         name = name if name else _guess_var_name(name)
@@ -129,6 +233,8 @@ def generate_mocks(framework,
                             x) or inspect.ismethod(x)) if t[0] != "__init__"
                 ]))
 
+    # todo: have a second function which returns the mocked objects
+    #   this can help in testing and refactoring
     if MockingFramework.PYTEST_MOCK == framework:
         return _pytest_mock_generate(name, modules, functions, methods,
                                      classes, mock_classes_static,
@@ -137,6 +243,52 @@ def generate_mocks(framework,
         raise ValueError(
             "Unsupported mocking framework: {0}. "
             "You are welcome to add code to support it :)".format(framework))
+
+
+def _stringify_node_path(node):
+    """
+    Returns the qualified path the node is pointing to.
+
+    Can return something like: var_name.attr.inner_attr.
+
+    Args:
+        node (ast.Name or ast.Attribute):
+
+    Returns:
+        str: the qualified path the node is pointing to.
+    """
+    if isinstance(node, ast.Name):
+        stringify = node.id
+    elif isinstance(node, ast.Attribute):
+        stringify = _stringify_node_path(node.value) + "." + node.attr
+    else:
+        raise TypeError(f"Can't stringify node of type {type(node)}")
+    return stringify
+
+
+def _pytest_mock_function_generate(functions, prepare_asserts_calls):
+    # todo: this will need testing of its own
+    generated_code = ""
+    mock_names = []
+    if functions:
+        generated_code += "# mocked functions\n"
+        for (
+                func_path,
+                func_name,
+        ) in functions:
+            generated_mock_name, generated_mock_code = \
+                _single_pytest_mock_module_entry(func_path, func_name)
+            mock_names.append(generated_mock_name)
+            generated_code += generated_mock_code
+
+    if prepare_asserts_calls and mock_names:
+        generated_code += "# calls to generate_asserts, " \
+                          "put this after the 'act'\n" \
+                          "import mock_autogen\n"
+        for mock_name in mock_names:
+            generated_code += _single_call_to_generate_asserts(mock_name)
+
+    return generated_code
 
 
 def _pytest_mock_generate(mocked_name, modules, functions, methods, classes,
@@ -178,9 +330,9 @@ def _pytest_mock_generate(mocked_name, modules, functions, methods, classes,
     if prepare_asserts_calls and mock_names:
         generated_code += "# calls to generate_asserts, " \
                           "put this after the 'act'\n" \
-                          "import mock_autogen.generator\n"
+                          "import mock_autogen\n"
         for mock_name in mock_names:
-            generated_code += _single_print_call_to_generate_asserts(mock_name)
+            generated_code += _single_call_to_generate_asserts(mock_name)
 
     return generated_code
 
@@ -224,14 +376,19 @@ mocker.patch('{1}.{0}', new=Mocked{0})
 """).format(class_name, mocked_name)
 
 
-def _single_print_call_to_generate_asserts(mock_name):
-    return "print(mock_autogen.generator.generate_asserts(" \
-           "{0}, name='{0}'))\n".format(mock_name)
+def _single_call_to_generate_asserts(mock_name):
+    return "mock_autogen.generate_asserts(" \
+           "{0}, name='{0}')\n".format(mock_name)
 
 
+@copy_result_to_clipboard
+@print_result
 def generate_asserts(mock, name=''):
     """
     Generates the asserts matching to the call list of the sent mock.
+
+    The generated asserts are printed to the console, copied to the clipboard
+    and returned.
 
     Args:
         mock (Mock or MagicMock): the mock object to generate the asserts for
@@ -303,10 +460,11 @@ def _guess_var_name(var):
         str: the argument name, according to the variable name sent to it, if
             unable to guess, returns 'arg'.
     """
-    lcls = inspect.stack()[2][0].f_locals
-    for name in lcls:
-        if id(var) == id(lcls[name]):
-            return name
+    for stack in range(2, len(inspect.stack())):
+        lcls = inspect.stack()[stack][0].f_locals
+        for name in lcls:
+            if id(var) == id(lcls[name]):
+                return name
     return 'arg'
 
 
