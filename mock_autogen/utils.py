@@ -87,3 +87,26 @@ def safe_travels(warnings: list, action: str, source_code: str):
         return safe_visit
 
     return decorator_repeat
+
+
+def get_unique_item(items: set, item: str) -> str:
+    """
+    Returns an item which is not in the set. The basic item name is sent as a parameter and
+    the returned item may be of the form 'item_#', where number is the first available.
+
+    The new item is added to the set to ensure two subsequent calls return different items.
+
+    Args:
+        items: the current set of items
+        item: the item to add
+
+    Returns:
+        The first item available, possibly in the form of 'item_#'.
+    """
+    sequence = 1
+    compound_item = item
+    while compound_item in items:
+        sequence += 1
+        compound_item = item + f'_{sequence}'
+    items.add(compound_item)
+    return compound_item

@@ -4,7 +4,7 @@ import pyperclip
 from unittest.mock import sentinel
 
 from mock_autogen.utils import print_result, copy_result_to_clipboard, \
-    safe_travels
+    safe_travels, get_unique_item
 
 
 @copy_result_to_clipboard
@@ -100,3 +100,34 @@ def test_safe_travels_on_func_failure(mocker):
                   '#  code_dump'
     mock_warning.assert_called_once_with(warning, exc_info=True)
     assert warning in warnings
+
+
+def test_get_unique_item_empty_set():
+    items = set()
+    assert 'a' == get_unique_item(items, 'a')
+    assert 'a' in items
+
+
+def test_get_unique_item_unique():
+    items = set('b')
+    assert 'a' == get_unique_item(items, 'a')
+    assert 'a' in items
+    assert len(items) == 2
+
+
+def test_get_unique_item_exist():
+    items = set('a')
+    assert 'a_2' == get_unique_item(items, 'a')
+    assert 'a' in items
+    assert 'a_2' in items
+    assert len(items) == 2
+
+
+def test_get_unique_item_exist_multiple():
+    items = set(['a', 'a_2', 'b'])
+    assert 'a_3' == get_unique_item(items, 'a')
+    assert 'a' in items
+    assert 'a_2' in items
+    assert 'a_3' in items
+    assert 'b' in items
+    assert len(items) == 4
