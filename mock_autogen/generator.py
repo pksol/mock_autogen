@@ -166,8 +166,9 @@ def generate_mocks(framework,
             @safe_travels(warnings, "ignore variable assign", source_code)
             def visit_Assign(self, node):
                 for target in node.targets:
-                    target_assign = _stringify_node_path(target)
-                    ignored_variables.add(target_assign)
+                    if not isinstance(target, ast.Subscript):
+                        target_assign = _stringify_node_path(target)
+                        ignored_variables.add(target_assign)
 
             @safe_travels(warnings, "ignore variable annotated assign",
                           source_code)
