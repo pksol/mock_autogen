@@ -7,6 +7,9 @@ import pytest
 import mock_autogen.generator
 import tests.sample.code.tested_module
 import tests.sample.code.second_module
+from tests.sample.code.comprehensions import get_square_root, summarize_environ_values
+from tests.sample.code.same_method_name import get_username_and_password
+from tests.sample.code.subscripts import list_subscript_games
 
 MOCKED_MODULES_HEADER = "# mocked modules\n"
 MOCKED_MODULES = "mock_os = mocker.MagicMock(name='os')\n" \
@@ -667,6 +670,148 @@ mock_autogen.generate_asserts(mock_b64decode, name='mock_b64decode')
     assert "20" == w_mock
 
 
+def test_generate_mocks_function_list_comprehension(mocker):
+    wo_mock = get_square_root([1, 4, 9])
+    assert [1, 2, 3] == wo_mock  # without mocks
+
+    expected = """# mocked functions
+mock_sqrt = mocker.MagicMock(name='sqrt')
+mocker.patch('tests.sample.code.comprehensions.math.sqrt', new=mock_sqrt)
+# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_sqrt, name='mock_sqrt')
+"""
+
+    expected_warnings, expected_mocks, expected_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(expected)
+
+    generated = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK, get_square_root)
+
+    generated_warnings, generated_mocks, generated_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(generated)
+
+    assert expected_warnings == generated_warnings
+    assert expected_mocks == generated_mocks
+    assert expected_asserts == generated_asserts
+
+    # verify the validity of generated mocks code
+    exec(generated +
+         "\nmock_sqrt.side_effect = [-1]*len('not a list of numbers')")
+
+    w_mock = get_square_root('not a list of numbers')
+    assert [-1] * len('not a list of numbers') == w_mock
+
+
+def test_generate_mocks_function_dict_comprehension(mocker):
+    expected = """# mocked functions
+mock_len = mocker.MagicMock(name='len')
+mocker.patch('tests.sample.code.comprehensions.len', new=mock_len)
+mock_items = mocker.MagicMock(name='items')
+mocker.patch('tests.sample.code.comprehensions.os.environ.items', new=mock_items)
+# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_len, name='mock_len')
+mock_autogen.generate_asserts(mock_items, name='mock_items')
+"""
+
+    expected_warnings, expected_mocks, expected_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(expected)
+
+    generated = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        summarize_environ_values)
+
+    generated_warnings, generated_mocks, generated_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(generated)
+
+    assert expected_warnings == generated_warnings
+    assert expected_mocks == generated_mocks
+    assert expected_asserts == generated_asserts
+
+    # verify the validity of generated mocks code
+    exec(generated + "\nmock_len.side_effect = range(3)" +
+         "\nmock_items.return_value = (('a','b'), ('c','d'), ('e','f'),)")
+
+    w_mock = summarize_environ_values()
+    assert {'a': 0, 'c': 1, 'e': 2} == w_mock
+
+
+def test_generate_mocks_function_subscript(mocker):
+    expected = """# mocked functions
+mock_sqrt = mocker.MagicMock(name='sqrt')
+mocker.patch('tests.sample.code.subscripts.math.sqrt', new=mock_sqrt)
+mock_randint = mocker.MagicMock(name='randint')
+mocker.patch('tests.sample.code.subscripts.random.randint', new=mock_randint)
+mock_str = mocker.MagicMock(name='str')
+mocker.patch('tests.sample.code.subscripts.str', new=mock_str)
+# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_sqrt, name='mock_sqrt')
+mock_autogen.generate_asserts(mock_randint, name='mock_randint')
+mock_autogen.generate_asserts(mock_str, name='mock_str')
+"""
+
+    expected_warnings, expected_mocks, expected_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(expected)
+
+    generated = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        list_subscript_games)
+
+    generated_warnings, generated_mocks, generated_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(generated)
+
+    assert expected_warnings == generated_warnings
+    assert expected_mocks == generated_mocks
+    assert expected_asserts == generated_asserts
+
+    # verify the validity of generated mocks code
+    exec(generated + "\nmock_sqrt.return_value = 0" +
+         "\nmock_randint.return_value = 0" + "\nmock_str.return_value = '7'")
+
+    my_list = [1, 2, 3, 4, 5]
+    list_subscript_games(my_list)
+    assert [-1, '7', 5] == my_list
+
+
+def test_generate_mocks_function_same_function_name_different_objects(mocker):
+    wo_mock = get_username_and_password()
+    assert "some_username,some_password" == wo_mock  # without mocks
+
+    expected = """# mocked functions
+mock_get = mocker.MagicMock(name='get')
+mocker.patch('tests.sample.code.same_method_name.get', new=mock_get)
+mock_get_2 = mocker.MagicMock(name='get_2')
+mocker.patch('tests.sample.code.same_method_name.os.environ.get', new=mock_get_2)
+# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_get, name='mock_get')
+mock_autogen.generate_asserts(mock_get_2, name='mock_get_2')
+"""
+
+    expected_warnings, expected_mocks, expected_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(expected)
+
+    generated = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        get_username_and_password)
+
+    generated_warnings, generated_mocks, generated_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(generated)
+
+    assert expected_warnings == generated_warnings
+    assert expected_mocks == generated_mocks
+    assert expected_asserts == generated_asserts
+
+    # verify the validity of generated mocks code
+    exec(generated + "\nmock_get.return_value = 'made_up_username'"
+         "\nmock_get_2.return_value = 'made_up_password'")
+
+    w_mock = get_username_and_password()
+    assert 'made_up_username,made_up_password' == w_mock
+
+
 def test_generate_mocks_method_inner_calls(mocker):
     global_before = tests.sample.code.tested_module.global_counter
     prop_before = tests.sample.code.tested_module.FirstClass.prop
@@ -864,7 +1009,7 @@ def test_generate_asserts_mocks_were_not_called(mock_everything_collection):
 
 
 def test_generate_asserts_are_in_same_folder_kwargs(
-        mock_functions_only_collection):
+    mock_functions_only_collection):
     tests.sample.code.tested_module.are_in_same_folder(
         path1='/some/path/file1.txt', path2='/some/path/file2.txt')
 
@@ -879,7 +1024,7 @@ def test_generate_asserts_are_in_same_folder_kwargs(
 
 
 def test_generate_asserts_are_in_same_folder_mix_args_kwargs(
-        mock_everything_collection):
+    mock_everything_collection):
     tests.sample.code.tested_module.are_in_same_folder(
         '/some/path/file1.txt', path2='/some/path/file2.txt')
 
@@ -905,7 +1050,7 @@ def test_generate_asserts_rm_alias_builtin_only(mock_builtin_only_collection):
 
 
 def test_generate_asserts_append_to_cwd_builtin_only(
-        mock_modules_only_collection):
+    mock_modules_only_collection):
     tests.sample.code.tested_module.append_to_cwd('/some/path/file1.txt')
 
     mock_os = mock_modules_only_collection.os
@@ -923,7 +1068,7 @@ def test_generate_asserts_append_to_cwd_builtin_only(
 
 
 def test_generate_asserts_append_to_cwd_builtin_only_mocked_cwd(
-        mock_modules_only_collection):
+    mock_modules_only_collection):
     mock_os = mock_modules_only_collection.os
 
     # added this so the assert can be affective.
@@ -1189,3 +1334,105 @@ def test_generate_asserts_invalid_object():
 def test__single_call_to_generate_asserts():
     assert "mock_autogen.generate_asserts(mock_name, name='mock_name')\n" == \
         mock_autogen.generator._single_call_to_generate_asserts("mock_name")
+
+
+@pytest.mark.parametrize('prepare_asserts_calls', [True, False])
+def test__pytest_mock_function_generate_no_functions(prepare_asserts_calls):
+    generated = mock_autogen.generator._pytest_mock_function_generate(
+        set(), prepare_asserts_calls)
+
+    assert "" == generated
+
+
+@pytest.mark.parametrize('prepare_asserts_calls', [True, False])
+def test__pytest_mock_function_generate_one_function(prepare_asserts_calls):
+    expected = """# mocked functions
+mock_first_function = mocker.MagicMock(name='first_function')
+mocker.patch('one.object.first_function', new=mock_first_function)
+"""
+    if prepare_asserts_calls:
+        expected += """# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_first_function, name='mock_first_function')
+"""
+
+    generated = mock_autogen.generator._pytest_mock_function_generate(
+        [('one.object', 'first_function')], prepare_asserts_calls)
+
+    assert expected == generated
+
+
+@pytest.mark.parametrize('prepare_asserts_calls', [True, False])
+def test__pytest_mock_function_generate_two_functions(prepare_asserts_calls):
+    expected = """# mocked functions
+mock_first_function = mocker.MagicMock(name='first_function')
+mocker.patch('one.object.first_function', new=mock_first_function)
+mock_second_function = mocker.MagicMock(name='second_function')
+mocker.patch('second.object.second_function', new=mock_second_function)
+"""
+    if prepare_asserts_calls:
+        expected += """# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_first_function, name='mock_first_function')
+mock_autogen.generate_asserts(mock_second_function, name='mock_second_function')
+"""
+
+    generated = mock_autogen.generator._pytest_mock_function_generate(
+        [('one.object', 'first_function'),
+         ('second.object', 'second_function')], prepare_asserts_calls)
+
+    assert expected == generated
+
+
+@pytest.mark.parametrize('prepare_asserts_calls', [True, False])
+def test__pytest_mock_function_generate_two_functions_duplicate(
+    prepare_asserts_calls):
+    expected = """# mocked functions
+mock_first_function = mocker.MagicMock(name='first_function')
+mocker.patch('one.object.first_function', new=mock_first_function)
+mock_first_function_2 = mocker.MagicMock(name='first_function_2')
+mocker.patch('second.object.first_function', new=mock_first_function_2)
+"""
+    if prepare_asserts_calls:
+        expected += """# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_first_function, name='mock_first_function')
+mock_autogen.generate_asserts(mock_first_function_2, name='mock_first_function_2')
+"""
+
+    generated = mock_autogen.generator._pytest_mock_function_generate(
+        [('one.object', 'first_function'),
+         ('second.object', 'first_function')], prepare_asserts_calls)
+
+    assert expected == generated
+
+
+@pytest.mark.parametrize('prepare_asserts_calls', [True, False])
+def test__pytest_mock_function_generate_four_functions_duplicate(
+    prepare_asserts_calls):
+    expected = """# mocked functions
+mock_first_function = mocker.MagicMock(name='first_function')
+mocker.patch('one.object.first_function', new=mock_first_function)
+mock_second_function = mocker.MagicMock(name='second_function')
+mocker.patch('second.object.second_function', new=mock_second_function)
+mock_first_function_2 = mocker.MagicMock(name='first_function_2')
+mocker.patch('third.sub.module.first_function', new=mock_first_function_2)
+mock_first_function_3 = mocker.MagicMock(name='first_function_3')
+mocker.patch('fourth.first_function', new=mock_first_function_3)
+"""
+    if prepare_asserts_calls:
+        expected += """# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_first_function, name='mock_first_function')
+mock_autogen.generate_asserts(mock_second_function, name='mock_second_function')
+mock_autogen.generate_asserts(mock_first_function_2, name='mock_first_function_2')
+mock_autogen.generate_asserts(mock_first_function_3, name='mock_first_function_3')
+"""
+
+    generated = mock_autogen.generator._pytest_mock_function_generate(
+        [('one.object', 'first_function'),
+         ('second.object', 'second_function'),
+         ('third.sub.module', 'first_function'), ('fourth', 'first_function')],
+        prepare_asserts_calls)
+
+    assert expected == generated

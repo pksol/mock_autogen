@@ -10,7 +10,8 @@ import inspect
 import mock as python_mock
 import unittest.mock
 
-from mock_autogen.utils import copy_result_to_clipboard, print_result, safe_travels
+from mock_autogen.utils import copy_result_to_clipboard, print_result, safe_travels, \
+    get_unique_item
 
 MockingFramework = Enum('MockingFramework', 'PYTEST_MOCK')
 CallParameters = namedtuple('CallParameters', 'args, kwargs')
@@ -166,8 +167,9 @@ def generate_mocks(framework,
             @safe_travels(warnings, "ignore variable assign", source_code)
             def visit_Assign(self, node):
                 for target in node.targets:
-                    target_assign = _stringify_node_path(target)
-                    ignored_variables.add(target_assign)
+                    if not isinstance(target, ast.Subscript):
+                        target_assign = _stringify_node_path(target)
+                        ignored_variables.add(target_assign)
 
             @safe_travels(warnings, "ignore variable annotated assign",
                           source_code)
@@ -267,8 +269,8 @@ def _stringify_node_path(node):
 
 
 def _pytest_mock_function_generate(functions, prepare_asserts_calls):
-    # todo: this will need testing of its own
     generated_code = ""
+    unique_functions = set()
     mock_names = []
     if functions:
         generated_code += "# mocked functions\n"
@@ -276,8 +278,9 @@ def _pytest_mock_function_generate(functions, prepare_asserts_calls):
                 func_path,
                 func_name,
         ) in functions:
+            unique_name = get_unique_item(unique_functions, func_name)
             generated_mock_name, generated_mock_code = \
-                _single_pytest_mock_module_entry(func_path, func_name)
+                _single_pytest_mock_module_entry_with_alias(unique_name, func_name, func_path)
             mock_names.append(generated_mock_name)
             generated_code += generated_mock_code
 
@@ -342,6 +345,12 @@ def _single_pytest_mock_module_entry(mocked_name, entry):
            ("mock_{0} = mocker.MagicMock(name='{0}')\n"
             "mocker.patch('{1}.{0}', new=mock_{0})\n"). \
         format(entry, mocked_name)
+
+
+def _single_pytest_mock_module_entry_with_alias(mock_name, function, module):
+    return f"mock_{mock_name}", \
+           f"mock_{mock_name} = mocker.MagicMock(name='{mock_name}')\n"\
+           f"mocker.patch('{module}.{function}', new=mock_{mock_name})\n"
 
 
 def _single_pytest_mock_object_entry(mocked_name, entry):
