@@ -293,7 +293,7 @@ class FuncLister(ast.NodeVisitor):
     def visit_comprehension(self, node):
         inner_variables = node.target
         if not isinstance(inner_variables, ast.Tuple):
-            inner_variables = ast.Tuple([node.target])
+            inner_variables = ast.Tuple(elts=[node.target])
 
         for inner_variable in inner_variables.elts:
             target_assign = _stringify_node_path(inner_variable)
