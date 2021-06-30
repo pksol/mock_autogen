@@ -1,5 +1,8 @@
 import ast
+import functools
+import logging
 import re
+import sys
 import textwrap
 import types
 from collections import namedtuple, OrderedDict
@@ -10,8 +13,10 @@ import inspect
 import mock as python_mock
 import unittest.mock
 
-from mock_autogen.utils import copy_result_to_clipboard, print_result, safe_travels, \
+from mock_autogen.utils import copy_result_to_clipboard, print_result, \
     get_unique_item
+
+logger = logging.getLogger(__name__)
 
 MockingFramework = Enum('MockingFramework', 'PYTEST_MOCK')
 CallParameters = namedtuple('CallParameters', 'args, kwargs')
@@ -126,103 +131,15 @@ def generate_mocks(framework,
                 ]))
     # mocking a function or a method
     elif inspect.isfunction(mocked) or inspect.ismethod(mocked):
-        outer_module_name = inspect.getmodule(mocked).__name__
-        source_code = textwrap.dedent(inspect.getsource(mocked))
-        tree = ast.parse(source_code)
-        warnings = []  # alert on all the unsupported syntax
+        func_lister = FuncLister(mocked)
+        func_lister.execute()
+        if func_lister.warnings:
+            func_lister.warnings.insert(0, "# warnings")
+            func_lister.warnings[-1] = func_lister.warnings[-1] + "\n"
 
-        # these are the functions which will be mocked
-        # every item is a tuple of two items: path to function, function name
-        # like: ('tests.sample.code.tested_module.random', 'randint')
-        functions = OrderedDict()  # no need to mock same function called twice
-
-        # keys are names while values are true import paths
-        # this is used to allow mocking dependencies that were renamed,
-        # an example to such rename is an internal import in the UUT function
-        import_mappings = {}
-
-        # ignore all variable function calls:
-        #   if they are parameters or assignments it's hard to know their type,
-        #       so it's hard to mock the right thing
-        #   if they were created by the result of calling a function that would
-        #       be mocked - the user can change or assert for the return_value
-        #       of that original mock
-        ignored_variables = set()
-
-        class FuncLister(ast.NodeVisitor):
-            @safe_travels(warnings, "ignore function arguments", source_code)
-            def visit_FunctionDef(self, node):
-                for i, arg in enumerate(node.args.args + node.args.kwonlyargs +
-                                        [node.args.vararg, node.args.kwarg]):
-                    if arg:
-                        # support 'self', 'cls' by pointing it to the Class
-                        if 0 == i and inspect.ismethod(mocked):
-                            self_var_name = arg.arg
-                            class_name = mocked.__qualname__.split('.', 1)[0]
-                            import_mappings[self_var_name] = \
-                                outer_module_name + '.' + class_name
-                        else:
-                            ignored_variables.add(arg.arg)
-
-            @safe_travels(warnings, "ignore variable assign", source_code)
-            def visit_Assign(self, node):
-                for target in node.targets:
-                    if not isinstance(target, ast.Subscript):
-                        target_assign = _stringify_node_path(target)
-                        ignored_variables.add(target_assign)
-
-            @safe_travels(warnings, "ignore variable annotated assign",
-                          source_code)
-            def visit_AnnAssign(self, node):
-                ignored_variables.add(node.target.id)
-                self.generic_visit(node)
-
-            @safe_travels(warnings, "ignore with variables", source_code)
-            def visit_withitem(self, node):
-                if node.optional_vars:
-                    ignored_variables.add(node.optional_vars.id)
-                self.generic_visit(node)
-
-            @safe_travels(warnings, "add internal import to known mappings",
-                          source_code)
-            def visit_Import(self, node):
-                for name in node.names:
-                    import_mappings[name.asname if name.asname else name.
-                                    name] = name.name
-
-            @safe_travels(warnings,
-                          "add internal import from to known mappings",
-                          source_code)
-            def visit_ImportFrom(self, node):
-                for name in node.names:
-                    import_mappings[name.asname if name.asname else name.
-                                    name] = node.module + "." + name.name
-
-            @safe_travels(warnings, "convert a function call into a mock",
-                          source_code)
-            def visit_Call(self, node):
-                id_and_func_path = _stringify_node_path(node.func).split(
-                    '.', 1)
-                skip_call = id_and_func_path[0] in ignored_variables
-                id_and_func_path[0] = import_mappings.get(
-                    id_and_func_path[0],
-                    outer_module_name + '.' + id_and_func_path[0])
-                replaced_path = ".".join(id_and_func_path)
-                module_path, func_name = replaced_path.rsplit('.', 1)
-                func_qualified_name = (
-                    module_path,
-                    func_name,
-                )
-
-                if not skip_call and func_qualified_name not in functions:
-                    functions[func_qualified_name] = None
-
-        FuncLister().visit(tree)
-        if warnings:
-            warnings.insert(0, "# warnings")
-            warnings[-1] = warnings[-1] + "\n"
-        return "\n".join(warnings) + _pytest_mock_function_generate(
-            functions.keys(), prepare_asserts_calls)
+        return "\n".join(
+            func_lister.warnings) + _pytest_mock_function_generate(
+                func_lister.mocked_functions(), prepare_asserts_calls)
     # we're mocking a regular instance
     else:
         name = name if name else _guess_var_name(name)
@@ -245,6 +162,159 @@ def generate_mocks(framework,
         raise ValueError(
             "Unsupported mocking framework: {0}. "
             "You are welcome to add code to support it :)".format(framework))
+
+
+def safe_travels(action: str):
+    """
+    Takes care of calling `self.generic_visit(node)` and allows the inner
+    method to focus on the logic. Including in the case of exception.
+
+    If an exception does happen, a warning in the form of
+    `f"# could not {action} on node: {str(node)}"` would be added to
+    self.warnings, and the tree travel would continue to the next node.
+
+    Args:
+        action: the name of the action
+
+    Returns:
+        callable: the decorated method
+    """
+    def inner_decorator(method):
+        @functools.wraps(method)
+        def safe_visit(self, node, *args, **kwargs):
+            try:
+                method(self, node, *args, **kwargs)
+            except Exception as e:
+                node_repr = ast.dump(node)
+                if sys.version_info >= (3, 8) and self.source_code:
+                    node_repr = ast.get_source_segment(self.source_code, node)
+                node_repr = "\n#  ".join(node_repr.split("\n"))
+                warning = f"# could not {action} on node:\n" \
+                          f"#  {node_repr}"
+                logger.warning(warning, exc_info=True)
+                self.warnings.append(warning)
+            self.generic_visit(node)
+
+        return safe_visit
+
+    return inner_decorator
+
+
+class FuncLister(ast.NodeVisitor):
+    def __init__(self, mocked):
+        self.mocked = mocked
+        self.outer_module_name = inspect.getmodule(mocked).__name__
+        self.source_code = textwrap.dedent(inspect.getsource(mocked))
+        self.tree = ast.parse(self.source_code)
+
+        self.warnings = []  # alert on all the unsupported syntax
+
+        # these are the potential calls, some of them won't be mocked
+        # every item is a tuple of two items: path to function, function name
+        self.potential_calls = []
+
+        # keys are names while values are true import paths
+        # this is used to allow mocking dependencies that were renamed,
+        # an example to such rename is an internal import in the UUT function
+        self.import_mappings = {}
+
+        # ignore all variable function calls:
+        #   if they are parameters or assignments it's hard to know their type,
+        #       so it's hard to mock the right thing
+        #   if they were created by the result of calling a function that would
+        #       be mocked - the user can change or assert for the return_value
+        #       of that original mock
+        self.ignored_variables = set()
+
+    def execute(self):
+        """
+        Goes through the source code tree and collects any functions to mock.
+        """
+        super().visit(self.tree)
+
+    def mocked_functions(self):
+        """
+        These are the functions which will be mocked.
+
+        Returns:
+            list of tuple:
+            every item is a tuple of two items -
+                path to function, function name.
+                Like: ('tests.sample.code.tested_module.random', 'randint')
+        """
+        functions = OrderedDict()  # no need to mock same function called twice
+        for id_and_func_path in self.potential_calls:
+            skip_call = id_and_func_path[0] in self.ignored_variables
+            id_and_func_path[0] = self.import_mappings.get(
+                id_and_func_path[0],
+                self.outer_module_name + '.' + id_and_func_path[0])
+            replaced_path = ".".join(id_and_func_path)
+            module_path, func_name = replaced_path.rsplit('.', 1)
+            func_qualified_name = (
+                module_path,
+                func_name,
+            )
+
+            if not skip_call and func_qualified_name not in functions:
+                functions[func_qualified_name] = None
+        return functions.keys()
+
+    @safe_travels("ignore function arguments")
+    def visit_FunctionDef(self, node):
+        for i, arg in enumerate(node.args.args + node.args.kwonlyargs +
+                                [node.args.vararg, node.args.kwarg]):
+            if arg:
+                # support 'self', 'cls' by pointing it to the Class
+                if 0 == i and inspect.ismethod(self.mocked):
+                    self_var_name = arg.arg
+                    class_name = self.mocked.__qualname__.split('.', 1)[0]
+                    self.import_mappings[self_var_name] = \
+                        self.outer_module_name + '.' + class_name
+                else:
+                    self.ignored_variables.add(arg.arg)
+
+    @safe_travels("ignore variable assign")
+    def visit_Assign(self, node):
+        for target in node.targets:
+            if not isinstance(target, ast.Subscript):
+                target_assign = _stringify_node_path(target)
+                self.ignored_variables.add(target_assign)
+
+    @safe_travels("ignore variable annotated assign")
+    def visit_AnnAssign(self, node):
+        self.ignored_variables.add(node.target.id)
+
+    @safe_travels("ignore with variables")
+    def visit_withitem(self, node):
+        if node.optional_vars:
+            self.ignored_variables.add(node.optional_vars.id)
+
+    @safe_travels("ignore comprehension variables")
+    def visit_comprehension(self, node):
+        inner_variables = node.target
+        if not isinstance(inner_variables, ast.Tuple):
+            inner_variables = ast.Tuple([node.target])
+
+        for inner_variable in inner_variables.elts:
+            target_assign = _stringify_node_path(inner_variable)
+            self.ignored_variables.add(target_assign)
+
+    @safe_travels("add internal import to known mappings")
+    def visit_Import(self, node):
+        for name in node.names:
+            self.import_mappings[name.asname if name.asname else name.
+                                 name] = name.name
+
+    @safe_travels("add internal import from to known mappings")
+    def visit_ImportFrom(self, node):
+        for name in node.names:
+            self.import_mappings[name.asname if name.asname else name.
+                                 name] = node.module + "." + name.name
+
+    @safe_travels("convert a function call into a mock")
+    def visit_Call(self, node):
+        id_and_func_path = _stringify_node_path(node.func).split('.', 1)
+        self.potential_calls.append(id_and_func_path)
 
 
 def _stringify_node_path(node):
@@ -280,7 +350,9 @@ def _pytest_mock_function_generate(functions, prepare_asserts_calls):
         ) in functions:
             unique_name = get_unique_item(unique_functions, func_name)
             generated_mock_name, generated_mock_code = \
-                _single_pytest_mock_module_entry_with_alias(unique_name, func_name, func_path)
+                _single_pytest_mock_module_entry_with_alias(unique_name,
+                                                            func_name,
+                                                            func_path)
             mock_names.append(generated_mock_name)
             generated_code += generated_mock_code
 
@@ -344,12 +416,12 @@ def _single_pytest_mock_module_entry(mocked_name, entry):
     return "mock_{0}".format(entry), \
            ("mock_{0} = mocker.MagicMock(name='{0}')\n"
             "mocker.patch('{1}.{0}', new=mock_{0})\n"). \
-        format(entry, mocked_name)
+               format(entry, mocked_name)
 
 
 def _single_pytest_mock_module_entry_with_alias(mock_name, function, module):
     return f"mock_{mock_name}", \
-           f"mock_{mock_name} = mocker.MagicMock(name='{mock_name}')\n"\
+           f"mock_{mock_name} = mocker.MagicMock(name='{mock_name}')\n" \
            f"mocker.patch('{module}.{function}', new=mock_{mock_name})\n"
 
 
@@ -361,7 +433,7 @@ def _single_pytest_mock_entry_with_spec(mocked_name, entry, spec):
     return "mock_{0}".format(entry), \
            ("mock_{0} = mocker.MagicMock(name='{0}', spec={2})\n"
             "mocker.patch('{1}.{0}', new=mock_{0})\n"). \
-        format(entry, mocked_name, spec)
+               format(entry, mocked_name, spec)
 
 
 def _mock_class_static(class_name, mocked_name):

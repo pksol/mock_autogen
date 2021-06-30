@@ -1,13 +1,15 @@
 import re
 import sys
 from collections import namedtuple
+from unittest.mock import sentinel
 
 import pytest
 
 import mock_autogen.generator
 import tests.sample.code.tested_module
 import tests.sample.code.second_module
-from tests.sample.code.comprehensions import get_square_root, summarize_environ_values
+from tests.sample.code.comprehensions import get_square_root, \
+    summarize_environ_values, trimmed_strings
 from tests.sample.code.same_method_name import get_username_and_password
 from tests.sample.code.subscripts import list_subscript_games
 
@@ -88,9 +90,9 @@ MOCKED_BUILTIN = "mock_os_remove = mocker.MagicMock(name='os_remove')\n" \
 
 MOCKED_METHODS_HEADER = "# mocked methods\n"
 MOCKED_METHODS = "mocker.patch.object(first, 'increase_class_counter')\n" \
- "mocker.patch.object(first, 'increase_global_counter')\n" \
- "mocker.patch.object(first, 'not_implemented')\n" \
- "mocker.patch.object(first, 'using_not_implemented')\n"
+                 "mocker.patch.object(first, 'increase_global_counter')\n" \
+                 "mocker.patch.object(first, 'not_implemented')\n" \
+                 "mocker.patch.object(first, 'using_not_implemented')\n"
 
 MOCKED_CLASSES_HEADER = "# mocked classes\n"
 MOCKED_CLASSES = "mock_FirstClass = mocker.MagicMock(name='FirstClass', " \
@@ -737,6 +739,35 @@ mock_autogen.generate_asserts(mock_items, name='mock_items')
     assert {'a': 0, 'c': 1, 'e': 2} == w_mock
 
 
+def test_generate_mocks_function_dict_comprehension_ignore_variables(mocker):
+    expected = """# mocked functions
+mock_len = mocker.MagicMock(name='len')
+mocker.patch('tests.sample.code.comprehensions.len', new=mock_len)
+# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_len, name='mock_len')
+"""
+
+    expected_warnings, expected_mocks, expected_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(expected)
+
+    generated = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK, trimmed_strings)
+
+    generated_warnings, generated_mocks, generated_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(generated)
+
+    assert expected_warnings == generated_warnings
+    assert expected_mocks == generated_mocks
+    assert expected_asserts == generated_asserts
+
+    # verify the validity of generated mocks code
+    exec(generated + "\nmock_len.return_value = 20")
+
+    w_mock = trimmed_strings(["a", "bb", "cc  "])
+    assert {'a': 20, 'cc': 20, 'bb': 20} == w_mock
+
+
 def test_generate_mocks_function_subscript(mocker):
     expected = """# mocked functions
 mock_sqrt = mocker.MagicMock(name='sqrt')
@@ -901,7 +932,8 @@ mock_autogen.generate_asserts(mock_get_random_number, name='mock_get_random_numb
     assert generated_mocks_function == generated_mocks_function_from_class
 
     generated_warnings, generated_mocks, generated_asserts = \
-        _extract_warnings_generated_mocks_and_generated_asserts(generated_mocks_function)
+        _extract_warnings_generated_mocks_and_generated_asserts(
+            generated_mocks_function)
 
     assert expected_warnings == generated_warnings
     assert expected_mocks == generated_mocks
@@ -1009,7 +1041,7 @@ def test_generate_asserts_mocks_were_not_called(mock_everything_collection):
 
 
 def test_generate_asserts_are_in_same_folder_kwargs(
-    mock_functions_only_collection):
+        mock_functions_only_collection):
     tests.sample.code.tested_module.are_in_same_folder(
         path1='/some/path/file1.txt', path2='/some/path/file2.txt')
 
@@ -1024,7 +1056,7 @@ def test_generate_asserts_are_in_same_folder_kwargs(
 
 
 def test_generate_asserts_are_in_same_folder_mix_args_kwargs(
-    mock_everything_collection):
+        mock_everything_collection):
     tests.sample.code.tested_module.are_in_same_folder(
         '/some/path/file1.txt', path2='/some/path/file2.txt')
 
@@ -1050,7 +1082,7 @@ def test_generate_asserts_rm_alias_builtin_only(mock_builtin_only_collection):
 
 
 def test_generate_asserts_append_to_cwd_builtin_only(
-    mock_modules_only_collection):
+        mock_modules_only_collection):
     tests.sample.code.tested_module.append_to_cwd('/some/path/file1.txt')
 
     mock_os = mock_modules_only_collection.os
@@ -1068,7 +1100,7 @@ def test_generate_asserts_append_to_cwd_builtin_only(
 
 
 def test_generate_asserts_append_to_cwd_builtin_only_mocked_cwd(
-    mock_modules_only_collection):
+        mock_modules_only_collection):
     mock_os = mock_modules_only_collection.os
 
     # added this so the assert can be affective.
@@ -1331,9 +1363,61 @@ def test_generate_asserts_invalid_object():
         mock_autogen.generator.generate_asserts('not a mock')
 
 
+@mock_autogen.generator.safe_travels("a dummy method that might fail")
+def node_visit_func(self, node):
+    node.made_up_function()
+
+
+def test_safe_travels_on_func_success(mocker):
+    self = mocker.MagicMock(name='self')
+    node = mocker.MagicMock(name='node')
+
+    node_visit_func(self, node)
+
+    node.made_up_function.assert_called_once_with()
+    self.generic_visit.assert_called_once_with(node)
+
+
+def test_safe_travels_on_func_failure(mocker):
+    # arrange
+    mock_dump = mocker.MagicMock(name='dump')
+    mock_dump.return_value = "code_dump"
+    mocker.patch('mock_autogen.generator.ast.dump', new=mock_dump)
+    mock_get_source_segment = mocker.MagicMock(name='get_source_segment')
+    mock_get_source_segment.return_value = "code_actual"
+    if sys.version_info >= (3, 8):
+        mocker.patch('mock_autogen.generator.ast.get_source_segment',
+                     new=mock_get_source_segment)
+    mock_warning = mocker.MagicMock(name='warning')
+    mocker.patch('mock_autogen.generator.logger.warning', new=mock_warning)
+    self = mocker.MagicMock(name='self')
+    self.warnings = []
+    self.source_code = "my = python.code"
+
+    # act
+    node_visit_func(self, sentinel.node)
+
+    # assert
+    self.generic_visit.assert_called_once_with(sentinel.node)
+
+    mock_dump.assert_called_once_with(sentinel.node)
+
+    if sys.version_info >= (3, 8):
+        mock_get_source_segment.assert_called_once_with(
+            'my = python.code', sentinel.node)
+        warning = '# could not a dummy method that might fail on node:\n' \
+                  '#  code_actual'
+    else:
+        mock_get_source_segment.assert_not_called()
+        warning = '# could not a dummy method that might fail on node:\n' \
+                  '#  code_dump'
+    mock_warning.assert_called_once_with(warning, exc_info=True)
+    assert warning in self.warnings
+
+
 def test__single_call_to_generate_asserts():
     assert "mock_autogen.generate_asserts(mock_name, name='mock_name')\n" == \
-        mock_autogen.generator._single_call_to_generate_asserts("mock_name")
+           mock_autogen.generator._single_call_to_generate_asserts("mock_name")
 
 
 @pytest.mark.parametrize('prepare_asserts_calls', [True, False])
@@ -1386,7 +1470,7 @@ mock_autogen.generate_asserts(mock_second_function, name='mock_second_function')
 
 @pytest.mark.parametrize('prepare_asserts_calls', [True, False])
 def test__pytest_mock_function_generate_two_functions_duplicate(
-    prepare_asserts_calls):
+        prepare_asserts_calls):
     expected = """# mocked functions
 mock_first_function = mocker.MagicMock(name='first_function')
 mocker.patch('one.object.first_function', new=mock_first_function)
@@ -1409,7 +1493,7 @@ mock_autogen.generate_asserts(mock_first_function_2, name='mock_first_function_2
 
 @pytest.mark.parametrize('prepare_asserts_calls', [True, False])
 def test__pytest_mock_function_generate_four_functions_duplicate(
-    prepare_asserts_calls):
+        prepare_asserts_calls):
     expected = """# mocked functions
 mock_first_function = mocker.MagicMock(name='first_function')
 mocker.patch('one.object.first_function', new=mock_first_function)
