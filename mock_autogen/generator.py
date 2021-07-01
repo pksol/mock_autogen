@@ -162,10 +162,10 @@ def _pytest_mock_function_generate(functions, prepare_asserts_calls):
     unique_functions = set()
     mock_names = []
     if functions:
-        generated_code += "# mocked functions\n"
+        generated_code += "# mocked functions\n"  # todo: replace with mocked dependencies
         for (
-                func_path,
-                func_name,
+                func_path,  # todo: this can be none if we mock root module
+                func_name,  # todo: replace with object var names
         ) in functions:
             unique_name = get_unique_item(unique_functions, func_name)
             generated_mock_name, generated_mock_code = \

@@ -84,6 +84,7 @@ class TestFuncLister:
     def test_execute_for_loop_single_variable_with_external_obj_iteration(
             self):
         expected_mocked_functions = [
+            ('tests.sample.code.comprehensions_and_loops', 'external_items'),
             ('tests.sample.code.comprehensions_and_loops.math', 'sqrt')
         ]
 

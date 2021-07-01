@@ -8,7 +8,8 @@ import mock_autogen.generator
 import tests.sample.code.tested_module
 import tests.sample.code.second_module
 from tests.sample.code.comprehensions_and_loops import get_square_root, \
-    summarize_environ_values, trimmed_strings
+    summarize_environ_values, trimmed_strings, \
+    get_square_root_external_variable
 from tests.sample.code.same_method_name import get_username_and_password
 from tests.sample.code.subscripts import list_subscript_games
 
@@ -704,6 +705,45 @@ mock_autogen.generate_asserts(mock_sqrt, name='mock_sqrt')
     assert [-1] * len('not a list of numbers') == w_mock
 
 
+def test_generate_mocks_function_list_comprehension_external_variable(mocker):
+    wo_mock = get_square_root_external_variable()
+    assert [1, 2, 3] == wo_mock  # without mocks
+
+    expected = """# mocked functions
+mock_sqrt = mocker.MagicMock(name='sqrt')
+mocker.patch('tests.sample.code.comprehensions_and_loops.math.sqrt', new=mock_sqrt)
+mock_external_items = mocker.MagicMock(name='external_items')
+mocker.patch('tests.sample.code.comprehensions_and_loops.external_items', new=mock_external_items)
+# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_sqrt, name='mock_sqrt')
+mock_autogen.generate_asserts(mock_external_items, name='mock_external_items')
+"""
+
+    expected_warnings, expected_mocks, expected_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(expected)
+
+    generated = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        get_square_root_external_variable)
+
+    generated_warnings, generated_mocks, generated_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(generated)
+
+    assert expected_warnings == generated_warnings
+    assert expected_mocks == generated_mocks
+    assert expected_asserts == generated_asserts
+
+    # verify the validity of generated mocks code
+    # exec(generated)
+    exec(generated +
+         "\nmock_sqrt.side_effect = [-1]*len('not a list of numbers')"
+         "\nmock_external_items.__iter__.return_value = [9, 16, 25, 36]")
+
+    w_mock = get_square_root_external_variable()
+    assert [-1] * 4 == w_mock  # we changed the number of items in the external
+
+
 def test_generate_mocks_function_dict_comprehension(mocker):
     expected = """# mocked functions
 mock_len = mocker.MagicMock(name='len')
@@ -913,9 +953,12 @@ def test_generate_mocks_static_method_inner_calls(mocker):
     expected = """# mocked functions
 mock_get_random_number = mocker.MagicMock(name='get_random_number')
 mocker.patch('tests.sample.code.tested_module.get_random_number', new=mock_get_random_number)
+mock_staticmethod = mocker.MagicMock(name='staticmethod')
+mocker.patch('tests.sample.code.tested_module.staticmethod', new=mock_staticmethod)
 # calls to generate_asserts, put this after the 'act'
 import mock_autogen
 mock_autogen.generate_asserts(mock_get_random_number, name='mock_get_random_number')
+mock_autogen.generate_asserts(mock_staticmethod, name='mock_staticmethod')
 """
     expected_warnings, expected_mocks, expected_asserts = \
         _extract_warnings_generated_mocks_and_generated_asserts(expected)
@@ -958,10 +1001,13 @@ mock_get_random_number = mocker.MagicMock(name='get_random_number')
 mocker.patch('tests.sample.code.tested_module.get_random_number', new=mock_get_random_number)
 mock_increase_global_counter = mocker.MagicMock(name='increase_global_counter')
 mocker.patch('tests.sample.code.tested_module.FirstClass.increase_global_counter', new=mock_increase_global_counter)
+mock_classmethod = mocker.MagicMock(name='classmethod')
+mocker.patch('tests.sample.code.tested_module.classmethod', new=mock_classmethod)
 # calls to generate_asserts, put this after the 'act'
 import mock_autogen
 mock_autogen.generate_asserts(mock_get_random_number, name='mock_get_random_number')
 mock_autogen.generate_asserts(mock_increase_global_counter, name='mock_increase_global_counter')
+mock_autogen.generate_asserts(mock_classmethod, name='mock_classmethod')
 """
     expected_warnings, expected_mocks, expected_asserts = \
         _extract_warnings_generated_mocks_and_generated_asserts(expected)

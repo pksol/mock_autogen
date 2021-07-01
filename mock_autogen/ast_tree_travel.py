@@ -118,15 +118,43 @@ class FuncLister(ast.NodeVisitor):
                 id_and_obj_path[0],
                 self.outer_module_name + '.' + id_and_obj_path[0])
             replaced_path = ".".join(id_and_obj_path)
-            obj_path, obj_name = replaced_path.rsplit('.', 1)
+            *obj_path, obj_name = replaced_path.rsplit('.', 1)
+            obj_path = obj_path[0] if obj_path else None
             obj_qualified_name = (
                 obj_path,
                 obj_name,
             )
 
             if not skip and obj_qualified_name not in dependencies:
-                dependencies[obj_qualified_name] = None
-        return dependencies.keys()
+                dependencies[obj_qualified_name] = replaced_path
+
+        return FuncLister._filter_root_mocks(dependencies)
+
+    @staticmethod
+    def _filter_root_mocks(dependencies):
+        """
+        Avoid mocking the root of called deps, filter them from the list.
+
+        Args:
+            dependencies (list of tuple): the original dependencies,
+                without filtering
+
+        Returns:
+        list of tuple:
+            every item is a tuple with two items:
+                * For objects: path to object, object name.
+                Like: ('tests.sample.code.tested_module', 'static_var')
+                * For functions: path to function, function name.
+                Like: ('tests.sample.code.tested_module.random', 'randint')
+        """
+        filtered_deps = OrderedDict()
+        replaced_paths = dependencies.values()
+        for k, v in dependencies.items():
+            if not any(
+                    filter(lambda path: path.startswith(v) and path != v,
+                           replaced_paths)):
+                filtered_deps[k] = v
+        return filtered_deps.keys()
 
     @safe_travels("ignore function arguments")
     def visit_FunctionDef(self, node):
@@ -161,12 +189,10 @@ class FuncLister(ast.NodeVisitor):
     @safe_travels("ignore for loop variables")
     def visit_For(self, node):
         self._add_target_variables_to_ignored(node)
-        self._possibly_add_external_dependency_object(node.iter)
 
     @safe_travels("ignore comprehension variables")
     def visit_comprehension(self, node):
         self._add_target_variables_to_ignored(node)
-        self._possibly_add_external_dependency_object(node.iter)
 
     @safe_travels("add internal import to known mappings")
     def visit_Import(self, node):
@@ -185,6 +211,10 @@ class FuncLister(ast.NodeVisitor):
         id_and_func_path = _stringify_node_path(node.func).split('.', 1)
         self.potential_dependencies.append(id_and_func_path)
 
+    @safe_travels("convert a name call into a mock")
+    def visit_Name(self, node):
+        self.potential_dependencies.append([_stringify_node_path(node)])
+
     def _add_target_variables_to_ignored(self, node):
         inner_variables = node.target
         if not isinstance(inner_variables, ast.Tuple) and not isinstance(
@@ -193,10 +223,6 @@ class FuncLister(ast.NodeVisitor):
         for inner_variable in inner_variables.elts:
             target_assign = _stringify_node_path(inner_variable)
             self.ignored_variables.add(target_assign)
-
-    def _possibly_add_external_dependency_object(self, node):
-        if _can_stringify_node_path(node):
-            self.potential_dependencies.append([_stringify_node_path(node)])
 
 
 def _can_stringify_node_path(node) -> bool:
