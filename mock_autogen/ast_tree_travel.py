@@ -49,13 +49,18 @@ def safe_travels(action: str):
 class FuncLister(ast.NodeVisitor):
     """
     Goes over the ast tree of the mocked method or function, finds any
-    called functions which are external dependencies to that method.
+    called functions and objects which are external dependencies.
 
-    Use `execute` to go over the tree and `mocked_functions` to get a list
-    of the findings.
+    Use `execute` to go over the tree and parse it, then use
+    `dependencies_found` attribute to get a list of the findings.
+
+    Every item in `dependencies_found` is a tuple with one or two items:
+        * For objects: path to object,
+        * For functions: path to function, function name.
+        Like: ('tests.sample.code.tested_module.random', 'randint')
 
     Any warnings during the ast parsing would be stored in the `warnings`
-    attribute of the object.
+    attribute. This list contains every warning as a string item.
 
     Args:
         mocked: a callable method or function
@@ -66,11 +71,12 @@ class FuncLister(ast.NodeVisitor):
         self.source_code = textwrap.dedent(inspect.getsource(mocked))
         self.tree = ast.parse(self.source_code)
 
+        self.dependencies_found = []  # the external func/obj to be mocked
         self.warnings = []  # alert on all the unsupported syntax
 
         # these are the potential calls, some of them won't be mocked
         # every item is a tuple of two items: path to function, function name
-        self.potential_calls = []
+        self.potential_dependencies = []
 
         # keys are names while values are true import paths
         # this is used to allow mocking dependencies that were renamed,
@@ -90,33 +96,37 @@ class FuncLister(ast.NodeVisitor):
         Goes through the source code tree and collects any functions to mock.
         """
         super().visit(self.tree)
+        self.dependencies_found = self._prepare_dependencies()
+        return self
 
-    def mocked_functions(self):
+    def _prepare_dependencies(self):
         """
-        These are the functions which will be mocked.
+        These are the functions and objects which will be mocked.
 
         Returns:
-            list of tuple:
-            every item is a tuple of two items -
-                path to function, function name.
+        list of tuple:
+            every item is a tuple with two items:
+                * For objects: path to object, object name.
+                Like: ('tests.sample.code.tested_module', 'static_var')
+                * For functions: path to function, function name.
                 Like: ('tests.sample.code.tested_module.random', 'randint')
         """
-        functions = OrderedDict()  # no need to mock same function called twice
-        for id_and_func_path in self.potential_calls:
-            skip_call = id_and_func_path[0] in self.ignored_variables
-            id_and_func_path[0] = self.import_mappings.get(
-                id_and_func_path[0],
-                self.outer_module_name + '.' + id_and_func_path[0])
-            replaced_path = ".".join(id_and_func_path)
-            module_path, func_name = replaced_path.rsplit('.', 1)
-            func_qualified_name = (
-                module_path,
-                func_name,
+        dependencies = OrderedDict()  # no need to mock same object twice
+        for id_and_obj_path in self.potential_dependencies:
+            skip = id_and_obj_path[0] in self.ignored_variables
+            id_and_obj_path[0] = self.import_mappings.get(
+                id_and_obj_path[0],
+                self.outer_module_name + '.' + id_and_obj_path[0])
+            replaced_path = ".".join(id_and_obj_path)
+            obj_path, obj_name = replaced_path.rsplit('.', 1)
+            obj_qualified_name = (
+                obj_path,
+                obj_name,
             )
 
-            if not skip_call and func_qualified_name not in functions:
-                functions[func_qualified_name] = None
-        return functions.keys()
+            if not skip and obj_qualified_name not in dependencies:
+                dependencies[obj_qualified_name] = None
+        return dependencies.keys()
 
     @safe_travels("ignore function arguments")
     def visit_FunctionDef(self, node):
@@ -148,15 +158,15 @@ class FuncLister(ast.NodeVisitor):
         if node.optional_vars:
             self.ignored_variables.add(node.optional_vars.id)
 
+    @safe_travels("ignore for loop variables")
+    def visit_For(self, node):
+        self._add_target_variables_to_ignored(node)
+        self._possibly_add_external_dependency_object(node.iter)
+
     @safe_travels("ignore comprehension variables")
     def visit_comprehension(self, node):
-        inner_variables = node.target
-        if not isinstance(inner_variables, ast.Tuple):
-            inner_variables = ast.Tuple(elts=[node.target])
-
-        for inner_variable in inner_variables.elts:
-            target_assign = _stringify_node_path(inner_variable)
-            self.ignored_variables.add(target_assign)
+        self._add_target_variables_to_ignored(node)
+        self._possibly_add_external_dependency_object(node.iter)
 
     @safe_travels("add internal import to known mappings")
     def visit_Import(self, node):
@@ -173,7 +183,28 @@ class FuncLister(ast.NodeVisitor):
     @safe_travels("convert a function call into a mock")
     def visit_Call(self, node):
         id_and_func_path = _stringify_node_path(node.func).split('.', 1)
-        self.potential_calls.append(id_and_func_path)
+        self.potential_dependencies.append(id_and_func_path)
+
+    def _add_target_variables_to_ignored(self, node):
+        inner_variables = node.target
+        if not isinstance(inner_variables, ast.Tuple) and not isinstance(
+                inner_variables, ast.List):
+            inner_variables = ast.Tuple(elts=[node.target])
+        for inner_variable in inner_variables.elts:
+            target_assign = _stringify_node_path(inner_variable)
+            self.ignored_variables.add(target_assign)
+
+    def _possibly_add_external_dependency_object(self, node):
+        if _can_stringify_node_path(node):
+            self.potential_dependencies.append([_stringify_node_path(node)])
+
+
+def _can_stringify_node_path(node) -> bool:
+    """
+    Returns:
+        whether this node can be stringified.
+    """
+    return isinstance(node, ast.Name) or isinstance(node, ast.Attribute)
 
 
 def _stringify_node_path(node):

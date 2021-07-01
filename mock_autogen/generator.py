@@ -127,15 +127,14 @@ def generate_mocks(framework,
                 ]))
     # mocking a function or a method
     elif inspect.isfunction(mocked) or inspect.ismethod(mocked):
-        func_lister = FuncLister(mocked)
-        func_lister.execute()
+        func_lister = FuncLister(mocked).execute()
         if func_lister.warnings:
             func_lister.warnings.insert(0, "# warnings")
             func_lister.warnings[-1] = func_lister.warnings[-1] + "\n"
 
         return "\n".join(
             func_lister.warnings) + _pytest_mock_function_generate(
-                func_lister.mocked_functions(), prepare_asserts_calls)
+                func_lister.dependencies_found, prepare_asserts_calls)
     # we're mocking a regular instance
     else:
         name = name if name else _guess_var_name(name)

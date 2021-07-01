@@ -1,14 +1,13 @@
 import re
 import sys
 from collections import namedtuple
-from unittest.mock import sentinel
 
 import pytest
 
 import mock_autogen.generator
 import tests.sample.code.tested_module
 import tests.sample.code.second_module
-from tests.sample.code.comprehensions import get_square_root, \
+from tests.sample.code.comprehensions_and_loops import get_square_root, \
     summarize_environ_values, trimmed_strings
 from tests.sample.code.same_method_name import get_username_and_password
 from tests.sample.code.subscripts import list_subscript_games
@@ -678,7 +677,7 @@ def test_generate_mocks_function_list_comprehension(mocker):
 
     expected = """# mocked functions
 mock_sqrt = mocker.MagicMock(name='sqrt')
-mocker.patch('tests.sample.code.comprehensions.math.sqrt', new=mock_sqrt)
+mocker.patch('tests.sample.code.comprehensions_and_loops.math.sqrt', new=mock_sqrt)
 # calls to generate_asserts, put this after the 'act'
 import mock_autogen
 mock_autogen.generate_asserts(mock_sqrt, name='mock_sqrt')
@@ -708,9 +707,9 @@ mock_autogen.generate_asserts(mock_sqrt, name='mock_sqrt')
 def test_generate_mocks_function_dict_comprehension(mocker):
     expected = """# mocked functions
 mock_len = mocker.MagicMock(name='len')
-mocker.patch('tests.sample.code.comprehensions.len', new=mock_len)
+mocker.patch('tests.sample.code.comprehensions_and_loops.len', new=mock_len)
 mock_items = mocker.MagicMock(name='items')
-mocker.patch('tests.sample.code.comprehensions.os.environ.items', new=mock_items)
+mocker.patch('tests.sample.code.comprehensions_and_loops.os.environ.items', new=mock_items)
 # calls to generate_asserts, put this after the 'act'
 import mock_autogen
 mock_autogen.generate_asserts(mock_len, name='mock_len')
@@ -742,7 +741,7 @@ mock_autogen.generate_asserts(mock_items, name='mock_items')
 def test_generate_mocks_function_dict_comprehension_ignore_variables(mocker):
     expected = """# mocked functions
 mock_len = mocker.MagicMock(name='len')
-mocker.patch('tests.sample.code.comprehensions.len', new=mock_len)
+mocker.patch('tests.sample.code.comprehensions_and_loops.len', new=mock_len)
 # calls to generate_asserts, put this after the 'act'
 import mock_autogen
 mock_autogen.generate_asserts(mock_len, name='mock_len')

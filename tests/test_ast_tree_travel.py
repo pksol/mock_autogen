@@ -1,10 +1,13 @@
 import sys
 from unittest.mock import sentinel
 
-import mock_autogen.ast_tree_travel
+from mock_autogen.ast_tree_travel import safe_travels, FuncLister
+from tests.sample.code.comprehensions_and_loops import get_square_root_loop, \
+    summarize_environ_values_loop, trimmed_strings_loop, \
+    get_square_root_loop_external_variable
 
 
-@mock_autogen.ast_tree_travel.safe_travels("a dummy method that might fail")
+@safe_travels("a dummy method that might fail")
 def node_visit_func(self, node):
     node.made_up_function()
 
@@ -55,3 +58,48 @@ def test_safe_travels_on_func_failure(mocker):
                   '#  code_dump'
     mock_warning.assert_called_once_with(warning, exc_info=True)
     assert warning in self.warnings
+
+
+class TestFuncLister:
+    def test_execute_for_loop_single_variable(self):
+        expected_mocked_functions = [
+            ('tests.sample.code.comprehensions_and_loops.math', 'sqrt')
+        ]
+
+        func_lister = FuncLister(get_square_root_loop).execute()
+        assert not func_lister.warnings
+        assert expected_mocked_functions == list(
+            func_lister.dependencies_found)
+
+    def test_execute_for_loop_single_variable_ignore_func_calls(self):
+        expected_mocked_functions = [
+            ('tests.sample.code.comprehensions_and_loops', 'len')
+        ]
+
+        func_lister = FuncLister(trimmed_strings_loop).execute()
+        assert not func_lister.warnings
+        assert expected_mocked_functions == list(
+            func_lister.dependencies_found)
+
+    def test_execute_for_loop_single_variable_with_external_obj_iteration(
+            self):
+        expected_mocked_functions = [
+            ('tests.sample.code.comprehensions_and_loops.math', 'sqrt')
+        ]
+
+        func_lister = FuncLister(
+            get_square_root_loop_external_variable).execute()
+        assert not func_lister.warnings
+        assert expected_mocked_functions == list(
+            func_lister.dependencies_found)
+
+    def test_execute_for_loop_multi_variable(self):
+        expected_mocked_functions = [
+            ('tests.sample.code.comprehensions_and_loops.os.environ', 'items'),
+            ('tests.sample.code.comprehensions_and_loops', 'len')
+        ]
+
+        func_lister = FuncLister(summarize_environ_values_loop).execute()
+        assert not func_lister.warnings
+        assert expected_mocked_functions == list(
+            func_lister.dependencies_found)
