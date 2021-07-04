@@ -10,7 +10,7 @@ from typing import Callable
 logger = logging.getLogger(__name__)
 
 
-def safe_travels(action: str):
+def safe_travels(action: str, call_generic_visit: bool = True):
     """
     Takes care of calling `self.generic_visit(node)` and allows the inner
     method to focus on the logic. Including in the case of exception.
@@ -21,6 +21,7 @@ def safe_travels(action: str):
 
     Args:
         action: the name of the action
+        call_generic_visit: whether to call generic_visit after the logic
 
     Returns:
         callable: the decorated method
@@ -39,7 +40,8 @@ def safe_travels(action: str):
                           f"#  {node_repr}"
                 logger.warning(warning, exc_info=True)
                 self.warnings.append(warning)
-            self.generic_visit(node)
+            if call_generic_visit:
+                self.generic_visit(node)
 
         return safe_visit
 
@@ -155,13 +157,22 @@ class DependencyLister(ast.NodeVisitor):
     @safe_travels("ignore variable assign")
     def visit_Assign(self, node):
         for target in node.targets:
-            if not isinstance(target, ast.Subscript):
-                target_assign = _stringify_node_path(target)
-                self.ignored_variables.add(target_assign)
+            for inner_target in DependencyLister._convert_to_list(target).elts:
+                if not isinstance(inner_target, ast.Subscript):
+                    target_assign = _stringify_node_path(inner_target)
+                    self.ignored_variables.add(target_assign)
 
-    @safe_travels("ignore variable annotated assign")
+    @safe_travels("ignore variable annotated assign", call_generic_visit=False)
     def visit_AnnAssign(self, node):
-        self.ignored_variables.add(node.target.id)
+        """
+        Ignores the variable name and don't go further down the tree to avoid
+        needing to ignore the variable type in case it's also a func call.
+
+        Example: if we don't stop and go further down the tree
+        `suffix: str = str(seed)` would cause us not to mock str, since it's
+        name was ignored when the variable was defined.
+        """
+        self.ignored_variables.add(_stringify_node_path(node.target))
 
     @safe_travels("ignore with variables")
     def visit_withitem(self, node):
@@ -196,14 +207,18 @@ class DependencyLister(ast.NodeVisitor):
                     self.ignored_variables.add(arg.arg)
 
     def _add_target_variables_to_ignored(self, node):
-        inner_variables = node.target
-        if not isinstance(inner_variables, ast.Tuple) and not isinstance(
-                inner_variables, ast.List) and not isinstance(
-                    inner_variables, ast.Set):
-            inner_variables = ast.Tuple(elts=[node.target])
+        inner_variables = DependencyLister._convert_to_list(node.target)
         for inner_variable in inner_variables.elts:
             target_assign = _stringify_node_path(inner_variable)
             self.ignored_variables.add(target_assign)
+
+    @staticmethod
+    def _convert_to_list(single_item_or_more):
+        if not isinstance(single_item_or_more, ast.Tuple) and not isinstance(
+                single_item_or_more, ast.List) and not isinstance(
+                    single_item_or_more, ast.Set):
+            single_item_or_more = ast.Tuple(elts=[single_item_or_more])
+        return single_item_or_more
 
     @staticmethod
     def _filter_root_mocks(dependencies):
@@ -254,6 +269,8 @@ def _stringify_node_path(node):
     """
     if isinstance(node, ast.Name):
         stringify = node.id
+    elif isinstance(node, ast.Starred):
+        stringify = _stringify_node_path(node.value)
     elif isinstance(node, ast.Attribute):
         stringify = _stringify_node_path(node.value) + "." + node.attr
     else:
