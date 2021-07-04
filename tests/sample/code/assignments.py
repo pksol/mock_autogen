@@ -39,3 +39,5 @@ def annotated_assignments():
     d, e, f = c
     a.append(d)
     len(f.strip())
+    suffix: str = str("seed")
+    len(suffix.strip())

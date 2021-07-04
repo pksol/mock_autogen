@@ -173,6 +173,8 @@ class DependencyLister(ast.NodeVisitor):
         name was ignored when the variable was defined.
         """
         self.ignored_variables.add(_stringify_node_path(node.target))
+        if node.value:  # this can be a function call for example
+            self.generic_visit(node.value)
 
     @safe_travels("ignore with variables")
     def visit_withitem(self, node):

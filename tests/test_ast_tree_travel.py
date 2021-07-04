@@ -196,9 +196,12 @@ class TestDependencyLister:
             deps_lister.dependencies_found)
 
     def test_execute_ignore_annotated_assign_calls(self):
-        expected_mocked_functions = [('tests.sample.code.assignments.random',
-                                      'randint'),
-                                     ('tests.sample.code.assignments', 'len')]
+        expected_mocked_functions = [
+            ('tests.sample.code.assignments.random', 'randint'),
+            ('tests.sample.code.assignments', 'split_list'),
+            ('tests.sample.code.assignments', 'len'),
+            ('tests.sample.code.assignments', 'str')
+        ]
 
         deps_lister = DependencyLister(annotated_assignments).execute()
         assert not deps_lister.warnings
