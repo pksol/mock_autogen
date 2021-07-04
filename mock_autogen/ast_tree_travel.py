@@ -46,7 +46,7 @@ def safe_travels(action: str):
     return inner_decorator
 
 
-class FuncLister(ast.NodeVisitor):
+class DependencyLister(ast.NodeVisitor):
     """
     Goes over the ast tree of the mocked method or function, finds any
     called functions and objects which are external dependencies.
@@ -55,8 +55,8 @@ class FuncLister(ast.NodeVisitor):
     `dependencies_found` attribute to get a list of the findings.
 
     Every item in `dependencies_found` is a tuple with one or two items:
-        * For objects: path to object,
-        * For functions: path to function, function name.
+        * For objects: (path to object,)
+        * For functions: (path to function, function name).
         Like: ('tests.sample.code.tested_module.random', 'randint')
 
     Any warnings during the ast parsing would be stored in the `warnings`
@@ -75,7 +75,8 @@ class FuncLister(ast.NodeVisitor):
         self.warnings = []  # alert on all the unsupported syntax
 
         # these are the potential calls, some of them won't be mocked
-        # every item is a tuple of two items: path to function, function name
+        # every object is a list of one item: path to object
+        # every func is a list of two items: path to function, function name
         self.potential_dependencies = []
 
         # keys are names while values are true import paths
@@ -93,7 +94,7 @@ class FuncLister(ast.NodeVisitor):
 
     def execute(self):
         """
-        Goes through the source code tree and collects any functions to mock.
+        Goes through the source code and collects any dependencies to mock.
         """
         super().visit(self.tree)
         self.dependencies_found = self._prepare_dependencies()
@@ -128,7 +129,76 @@ class FuncLister(ast.NodeVisitor):
             if not skip and obj_qualified_name not in dependencies:
                 dependencies[obj_qualified_name] = replaced_path
 
-        return FuncLister._filter_root_mocks(dependencies)
+        return DependencyLister._filter_root_mocks(dependencies)
+
+    @safe_travels("convert a name call into a mock")
+    def visit_Name(self, node):
+        self.potential_dependencies.append([_stringify_node_path(node)])
+
+    @safe_travels("convert a function call into a mock")
+    def visit_Call(self, node):
+        id_and_func_path = _stringify_node_path(node.func).split('.', 1)
+        self.potential_dependencies.append(id_and_func_path)
+
+    @safe_travels("add internal import to known mappings")
+    def visit_Import(self, node):
+        for name in node.names:
+            self.import_mappings[name.asname if name.asname else name.
+                                 name] = name.name
+
+    @safe_travels("add internal import from to known mappings")
+    def visit_ImportFrom(self, node):
+        for name in node.names:
+            self.import_mappings[name.asname if name.asname else name.
+                                 name] = node.module + "." + name.name
+
+    @safe_travels("ignore variable assign")
+    def visit_Assign(self, node):
+        for target in node.targets:
+            if not isinstance(target, ast.Subscript):
+                target_assign = _stringify_node_path(target)
+                self.ignored_variables.add(target_assign)
+
+    @safe_travels("ignore variable annotated assign")
+    def visit_AnnAssign(self, node):
+        self.ignored_variables.add(node.target.id)
+
+    @safe_travels("ignore with variables")
+    def visit_withitem(self, node):
+        if node.optional_vars:
+            self.ignored_variables.add(node.optional_vars.id)
+
+    @safe_travels("ignore for loop variables")
+    def visit_For(self, node):
+        self._add_target_variables_to_ignored(node)
+
+    @safe_travels("ignore comprehension variables")
+    def visit_comprehension(self, node):
+        self._add_target_variables_to_ignored(node)
+
+    @safe_travels("ignore function arguments")
+    def visit_FunctionDef(self, node):
+        for i, arg in enumerate(node.args.args + node.args.kwonlyargs +
+                                [node.args.vararg, node.args.kwarg]):
+            if arg:
+                # support 'self', 'cls' by pointing it to the Class
+                if 0 == i and inspect.ismethod(self.mocked):
+                    self_var_name = arg.arg
+                    class_name = self.mocked.__qualname__.split('.', 1)[0]
+                    self.import_mappings[self_var_name] = \
+                        self.outer_module_name + '.' + class_name
+                else:
+                    self.ignored_variables.add(arg.arg)
+
+    def _add_target_variables_to_ignored(self, node):
+        inner_variables = node.target
+        if not isinstance(inner_variables, ast.Tuple) and not isinstance(
+                inner_variables, ast.List) and not isinstance(
+                    inner_variables, ast.Set):
+            inner_variables = ast.Tuple(elts=[node.target])
+        for inner_variable in inner_variables.elts:
+            target_assign = _stringify_node_path(inner_variable)
+            self.ignored_variables.add(target_assign)
 
     @staticmethod
     def _filter_root_mocks(dependencies):
@@ -155,74 +225,6 @@ class FuncLister(ast.NodeVisitor):
                            replaced_paths)):
                 filtered_deps[k] = v
         return filtered_deps.keys()
-
-    @safe_travels("ignore function arguments")
-    def visit_FunctionDef(self, node):
-        for i, arg in enumerate(node.args.args + node.args.kwonlyargs +
-                                [node.args.vararg, node.args.kwarg]):
-            if arg:
-                # support 'self', 'cls' by pointing it to the Class
-                if 0 == i and inspect.ismethod(self.mocked):
-                    self_var_name = arg.arg
-                    class_name = self.mocked.__qualname__.split('.', 1)[0]
-                    self.import_mappings[self_var_name] = \
-                        self.outer_module_name + '.' + class_name
-                else:
-                    self.ignored_variables.add(arg.arg)
-
-    @safe_travels("ignore variable assign")
-    def visit_Assign(self, node):
-        for target in node.targets:
-            if not isinstance(target, ast.Subscript):
-                target_assign = _stringify_node_path(target)
-                self.ignored_variables.add(target_assign)
-
-    @safe_travels("ignore variable annotated assign")
-    def visit_AnnAssign(self, node):
-        self.ignored_variables.add(node.target.id)
-
-    @safe_travels("ignore with variables")
-    def visit_withitem(self, node):
-        if node.optional_vars:
-            self.ignored_variables.add(node.optional_vars.id)
-
-    @safe_travels("ignore for loop variables")
-    def visit_For(self, node):
-        self._add_target_variables_to_ignored(node)
-
-    @safe_travels("ignore comprehension variables")
-    def visit_comprehension(self, node):
-        self._add_target_variables_to_ignored(node)
-
-    @safe_travels("add internal import to known mappings")
-    def visit_Import(self, node):
-        for name in node.names:
-            self.import_mappings[name.asname if name.asname else name.
-                                 name] = name.name
-
-    @safe_travels("add internal import from to known mappings")
-    def visit_ImportFrom(self, node):
-        for name in node.names:
-            self.import_mappings[name.asname if name.asname else name.
-                                 name] = node.module + "." + name.name
-
-    @safe_travels("convert a function call into a mock")
-    def visit_Call(self, node):
-        id_and_func_path = _stringify_node_path(node.func).split('.', 1)
-        self.potential_dependencies.append(id_and_func_path)
-
-    @safe_travels("convert a name call into a mock")
-    def visit_Name(self, node):
-        self.potential_dependencies.append([_stringify_node_path(node)])
-
-    def _add_target_variables_to_ignored(self, node):
-        inner_variables = node.target
-        if not isinstance(inner_variables, ast.Tuple) and not isinstance(
-                inner_variables, ast.List):
-            inner_variables = ast.Tuple(elts=[node.target])
-        for inner_variable in inner_variables.elts:
-            target_assign = _stringify_node_path(inner_variable)
-            self.ignored_variables.add(target_assign)
 
 
 def _can_stringify_node_path(node) -> bool:

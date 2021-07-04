@@ -570,7 +570,7 @@ def test_generate_mocks_function_inner_imports(mocker):
 # could not convert a function call into a mock on node:
 #  (message.upper() + suffix). \
 #          encode('ascii')
-# mocked functions
+# mocked dependencies
 mock_randint = mocker.MagicMock(name='randint')
 mocker.patch('tests.sample.code.tested_module.random.randint', new=mock_randint)
 mock_get_random_number = mocker.MagicMock(name='get_random_number')
@@ -625,7 +625,7 @@ def test_generate_mocks_function_inner_imports_partial_functions(mocker):
 # could not convert a function call into a mock on node:
 #  (message.upper() + suffix). \
 #          encode('ascii')
-# mocked functions
+# mocked dependencies
 mock_randint = mocker.MagicMock(name='randint')
 mocker.patch('tests.sample.code.tested_module.random.randint', new=mock_randint)
 mock_get_random_number = mocker.MagicMock(name='get_random_number')
@@ -676,7 +676,7 @@ def test_generate_mocks_function_list_comprehension(mocker):
     wo_mock = get_square_root([1, 4, 9])
     assert [1, 2, 3] == wo_mock  # without mocks
 
-    expected = """# mocked functions
+    expected = """# mocked dependencies
 mock_sqrt = mocker.MagicMock(name='sqrt')
 mocker.patch('tests.sample.code.comprehensions_and_loops.math.sqrt', new=mock_sqrt)
 # calls to generate_asserts, put this after the 'act'
@@ -709,7 +709,7 @@ def test_generate_mocks_function_list_comprehension_external_variable(mocker):
     wo_mock = get_square_root_external_variable()
     assert [1, 2, 3] == wo_mock  # without mocks
 
-    expected = """# mocked functions
+    expected = """# mocked dependencies
 mock_sqrt = mocker.MagicMock(name='sqrt')
 mocker.patch('tests.sample.code.comprehensions_and_loops.math.sqrt', new=mock_sqrt)
 mock_external_items = mocker.MagicMock(name='external_items')
@@ -745,7 +745,7 @@ mock_autogen.generate_asserts(mock_external_items, name='mock_external_items')
 
 
 def test_generate_mocks_function_dict_comprehension(mocker):
-    expected = """# mocked functions
+    expected = """# mocked dependencies
 mock_len = mocker.MagicMock(name='len')
 mocker.patch('tests.sample.code.comprehensions_and_loops.len', new=mock_len)
 mock_items = mocker.MagicMock(name='items')
@@ -779,7 +779,7 @@ mock_autogen.generate_asserts(mock_items, name='mock_items')
 
 
 def test_generate_mocks_function_dict_comprehension_ignore_variables(mocker):
-    expected = """# mocked functions
+    expected = """# mocked dependencies
 mock_len = mocker.MagicMock(name='len')
 mocker.patch('tests.sample.code.comprehensions_and_loops.len', new=mock_len)
 # calls to generate_asserts, put this after the 'act'
@@ -808,7 +808,7 @@ mock_autogen.generate_asserts(mock_len, name='mock_len')
 
 
 def test_generate_mocks_function_subscript(mocker):
-    expected = """# mocked functions
+    expected = """# mocked dependencies
 mock_sqrt = mocker.MagicMock(name='sqrt')
 mocker.patch('tests.sample.code.subscripts.math.sqrt', new=mock_sqrt)
 mock_randint = mocker.MagicMock(name='randint')
@@ -849,7 +849,7 @@ def test_generate_mocks_function_same_function_name_different_objects(mocker):
     wo_mock = get_username_and_password()
     assert "some_username,some_password" == wo_mock  # without mocks
 
-    expected = """# mocked functions
+    expected = """# mocked dependencies
 mock_get = mocker.MagicMock(name='get')
 mocker.patch('tests.sample.code.same_method_name.get', new=mock_get)
 mock_get_2 = mocker.MagicMock(name='get_2')
@@ -889,7 +889,7 @@ def test_generate_mocks_method_inner_calls(mocker):
     expected = """# warnings
 # could not convert a function call into a mock on node:
 #  (suffix.upper() + suffix).encode('ascii')
-# mocked functions
+# mocked dependencies
 mock_randint = mocker.MagicMock(name='randint')
 mocker.patch('tests.sample.code.tested_module.random.randint', new=mock_randint)
 mock_get_random_number = mocker.MagicMock(name='get_random_number')
@@ -950,7 +950,7 @@ def test_generate_mocks_static_method_inner_calls(mocker):
     global_before = tests.sample.code.tested_module.global_counter
     prop_before = tests.sample.code.tested_module.FirstClass.prop
     first = tests.sample.code.tested_module.FirstClass('20')
-    expected = """# mocked functions
+    expected = """# mocked dependencies
 mock_get_random_number = mocker.MagicMock(name='get_random_number')
 mocker.patch('tests.sample.code.tested_module.get_random_number', new=mock_get_random_number)
 mock_staticmethod = mocker.MagicMock(name='staticmethod')
@@ -996,7 +996,7 @@ def test_generate_mocks_class_method_inner_calls(mocker):
     global_before = tests.sample.code.tested_module.global_counter
     prop_before = tests.sample.code.tested_module.FirstClass.prop
     first = tests.sample.code.tested_module.FirstClass('20')
-    expected = """# mocked functions
+    expected = """# mocked dependencies
 mock_get_random_number = mocker.MagicMock(name='get_random_number')
 mocker.patch('tests.sample.code.tested_module.get_random_number', new=mock_get_random_number)
 mock_increase_global_counter = mocker.MagicMock(name='increase_global_counter')
@@ -1414,16 +1414,18 @@ def test__single_call_to_generate_asserts():
 
 
 @pytest.mark.parametrize('prepare_asserts_calls', [True, False])
-def test__pytest_mock_function_generate_no_functions(prepare_asserts_calls):
-    generated = mock_autogen.generator._pytest_mock_function_generate(
+def test__pytest_mock_dependencies_generate_no_functions(
+        prepare_asserts_calls):
+    generated = mock_autogen.generator._pytest_mock_dependencies_generate(
         set(), prepare_asserts_calls)
 
     assert "" == generated
 
 
 @pytest.mark.parametrize('prepare_asserts_calls', [True, False])
-def test__pytest_mock_function_generate_one_function(prepare_asserts_calls):
-    expected = """# mocked functions
+def test__pytest_mock_dependencies_generate_one_function(
+        prepare_asserts_calls):
+    expected = """# mocked dependencies
 mock_first_function = mocker.MagicMock(name='first_function')
 mocker.patch('one.object.first_function', new=mock_first_function)
 """
@@ -1433,15 +1435,16 @@ import mock_autogen
 mock_autogen.generate_asserts(mock_first_function, name='mock_first_function')
 """
 
-    generated = mock_autogen.generator._pytest_mock_function_generate(
+    generated = mock_autogen.generator._pytest_mock_dependencies_generate(
         [('one.object', 'first_function')], prepare_asserts_calls)
 
     assert expected == generated
 
 
 @pytest.mark.parametrize('prepare_asserts_calls', [True, False])
-def test__pytest_mock_function_generate_two_functions(prepare_asserts_calls):
-    expected = """# mocked functions
+def test__pytest_mock_dependencies_generate_two_functions(
+        prepare_asserts_calls):
+    expected = """# mocked dependencies
 mock_first_function = mocker.MagicMock(name='first_function')
 mocker.patch('one.object.first_function', new=mock_first_function)
 mock_second_function = mocker.MagicMock(name='second_function')
@@ -1454,7 +1457,7 @@ mock_autogen.generate_asserts(mock_first_function, name='mock_first_function')
 mock_autogen.generate_asserts(mock_second_function, name='mock_second_function')
 """
 
-    generated = mock_autogen.generator._pytest_mock_function_generate(
+    generated = mock_autogen.generator._pytest_mock_dependencies_generate(
         [('one.object', 'first_function'),
          ('second.object', 'second_function')], prepare_asserts_calls)
 
@@ -1462,9 +1465,9 @@ mock_autogen.generate_asserts(mock_second_function, name='mock_second_function')
 
 
 @pytest.mark.parametrize('prepare_asserts_calls', [True, False])
-def test__pytest_mock_function_generate_two_functions_duplicate(
+def test__pytest_mock_dependencies_generate_two_functions_duplicate(
         prepare_asserts_calls):
-    expected = """# mocked functions
+    expected = """# mocked dependencies
 mock_first_function = mocker.MagicMock(name='first_function')
 mocker.patch('one.object.first_function', new=mock_first_function)
 mock_first_function_2 = mocker.MagicMock(name='first_function_2')
@@ -1477,7 +1480,7 @@ mock_autogen.generate_asserts(mock_first_function, name='mock_first_function')
 mock_autogen.generate_asserts(mock_first_function_2, name='mock_first_function_2')
 """
 
-    generated = mock_autogen.generator._pytest_mock_function_generate(
+    generated = mock_autogen.generator._pytest_mock_dependencies_generate(
         [('one.object', 'first_function'),
          ('second.object', 'first_function')], prepare_asserts_calls)
 
@@ -1485,9 +1488,9 @@ mock_autogen.generate_asserts(mock_first_function_2, name='mock_first_function_2
 
 
 @pytest.mark.parametrize('prepare_asserts_calls', [True, False])
-def test__pytest_mock_function_generate_four_functions_duplicate(
+def test__pytest_mock_dependencies_generate_four_functions_duplicate(
         prepare_asserts_calls):
-    expected = """# mocked functions
+    expected = """# mocked dependencies
 mock_first_function = mocker.MagicMock(name='first_function')
 mocker.patch('one.object.first_function', new=mock_first_function)
 mock_second_function = mocker.MagicMock(name='second_function')
@@ -1506,7 +1509,7 @@ mock_autogen.generate_asserts(mock_first_function_2, name='mock_first_function_2
 mock_autogen.generate_asserts(mock_first_function_3, name='mock_first_function_3')
 """
 
-    generated = mock_autogen.generator._pytest_mock_function_generate(
+    generated = mock_autogen.generator._pytest_mock_dependencies_generate(
         [('one.object', 'first_function'),
          ('second.object', 'second_function'),
          ('third.sub.module', 'first_function'), ('fourth', 'first_function')],

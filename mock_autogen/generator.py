@@ -8,7 +8,7 @@ from enum import Enum
 
 import mock as python_mock
 
-from mock_autogen.ast_tree_travel import FuncLister
+from mock_autogen.ast_tree_travel import DependencyLister
 from mock_autogen.utils import copy_result_to_clipboard, print_result, \
     get_unique_item
 
@@ -127,14 +127,14 @@ def generate_mocks(framework,
                 ]))
     # mocking a function or a method
     elif inspect.isfunction(mocked) or inspect.ismethod(mocked):
-        func_lister = FuncLister(mocked).execute()
-        if func_lister.warnings:
-            func_lister.warnings.insert(0, "# warnings")
-            func_lister.warnings[-1] = func_lister.warnings[-1] + "\n"
+        deps_lister = DependencyLister(mocked).execute()
+        if deps_lister.warnings:
+            deps_lister.warnings.insert(0, "# warnings")
+            deps_lister.warnings[-1] = deps_lister.warnings[-1] + "\n"
 
         return "\n".join(
-            func_lister.warnings) + _pytest_mock_function_generate(
-                func_lister.dependencies_found, prepare_asserts_calls)
+            deps_lister.warnings) + _pytest_mock_dependencies_generate(
+                deps_lister.dependencies_found, prepare_asserts_calls)
     # we're mocking a regular instance
     else:
         name = name if name else _guess_var_name(name)
@@ -157,21 +157,21 @@ def generate_mocks(framework,
             "You are welcome to add code to support it :)".format(framework))
 
 
-def _pytest_mock_function_generate(functions, prepare_asserts_calls):
+def _pytest_mock_dependencies_generate(dependencies, prepare_asserts_calls):
     generated_code = ""
-    unique_functions = set()
+    unique_dependencies = set()
     mock_names = []
-    if functions:
-        generated_code += "# mocked functions\n"  # todo: replace with mocked dependencies
+    if dependencies:
+        generated_code += "# mocked dependencies\n"
         for (
-                func_path,  # todo: this can be none if we mock root module
-                func_name,  # todo: replace with object var names
-        ) in functions:
-            unique_name = get_unique_item(unique_functions, func_name)
+                obj_path,
+                obj_name,
+        ) in dependencies:
+            unique_name = get_unique_item(unique_dependencies, obj_name)
             generated_mock_name, generated_mock_code = \
                 _single_pytest_mock_module_entry_with_alias(unique_name,
-                                                            func_name,
-                                                            func_path)
+                                                            obj_name,
+                                                            obj_path)
             mock_names.append(generated_mock_name)
             generated_code += generated_mock_code
 

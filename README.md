@@ -72,7 +72,7 @@ mock_autogen.generate_uut_mocks(process_and_zip)
 ```
 This will generate the 'Arrange' section for you:
 ```python
-# mocked functions
+# mocked dependencies
 mock_ZipFile = mocker.MagicMock(name='ZipFile')
 mocker.patch('tests.sample.code.tested_module.zipfile.ZipFile', new=mock_ZipFile)
 ```
@@ -84,7 +84,7 @@ import mock_autogen
 from tests.sample.code.tested_module import process_and_zip
 
 def test_process_and_zip(mocker):
-    # mocked functions
+    # mocked dependencies
     mock_ZipFile = mocker.MagicMock(name='ZipFile')
     mocker.patch('tests.sample.code.tested_module.zipfile.ZipFile', new=mock_ZipFile)
     
@@ -126,7 +126,7 @@ The complete test function:
 from tests.sample.code.tested_module import process_and_zip
 
 def test_process_and_zip(mocker):
-    # mocked functions
+    # mocked dependencies
     mock_ZipFile = mocker.MagicMock(name='ZipFile')
     mocker.patch('tests.sample.code.tested_module.zipfile.ZipFile', new=mock_ZipFile)
     

@@ -17,7 +17,7 @@ from tests.test_utils import safe_assert_clipboard
 
 
 def test_generate_uut_mocks_simple(mocker, capsys):
-    expected = """# mocked functions
+    expected = """# mocked dependencies
 mock_remove = mocker.MagicMock(name='remove')
 mocker.patch('tests.sample.code.tested_module.os.remove', new=mock_remove)
 """
@@ -38,7 +38,7 @@ mocker.patch('tests.sample.code.tested_module.os.remove', new=mock_remove)
 
 
 def test_generate_uut_mocks_complex(mocker, capsys):
-    expected = """# mocked functions
+    expected = """# mocked dependencies
 mock_ZipFile = mocker.MagicMock(name='ZipFile')
 mocker.patch('tests.sample.code.tested_module.zipfile.ZipFile', new=mock_ZipFile)
 """
@@ -116,7 +116,7 @@ mock_ZipFile.return_value.__exit__.assert_called_once_with(None, None, None)"""
 
 
 def test_generate_uut_mocks_with_asserts_simple(mocker, capsys):
-    expected = """# mocked functions
+    expected = """# mocked dependencies
 mock_remove = mocker.MagicMock(name='remove')
 mocker.patch('tests.sample.code.tested_module.os.remove', new=mock_remove)
 # calls to generate_asserts, put this after the 'act'
