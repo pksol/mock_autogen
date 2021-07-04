@@ -5,6 +5,7 @@ from mock_autogen.ast_tree_travel import safe_travels, DependencyLister
 from tests.sample.code.comprehensions_and_loops import get_square_root_loop, \
     summarize_environ_values_loop, trimmed_strings_loop, \
     get_square_root_loop_external_variable
+from tests.sample.code.lambdas import simple_func_using_lambdas
 
 
 @safe_travels("a dummy method that might fail")
@@ -101,6 +102,16 @@ class TestDependencyLister:
         ]
 
         deps_lister = DependencyLister(summarize_environ_values_loop).execute()
+        assert not deps_lister.warnings
+        assert expected_mocked_functions == list(
+            deps_lister.dependencies_found)
+
+    def test_execute_lambda_ignore_variable_func_calls(self):
+        expected_mocked_functions = [('tests.sample.code.lambdas', 'any'),
+                                     ('tests.sample.code.lambdas', 'filter'),
+                                     ('tests.sample.code.lambdas', 'len')]
+
+        deps_lister = DependencyLister(simple_func_using_lambdas).execute()
         assert not deps_lister.warnings
         assert expected_mocked_functions == list(
             deps_lister.dependencies_found)

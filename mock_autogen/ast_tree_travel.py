@@ -176,6 +176,11 @@ class DependencyLister(ast.NodeVisitor):
     def visit_comprehension(self, node):
         self._add_target_variables_to_ignored(node)
 
+    @safe_travels("ignore lambda arguments")
+    def visit_Lambda(self, node):
+        for arg in node.args.args:
+            self.ignored_variables.add(arg.arg)
+
     @safe_travels("ignore function arguments")
     def visit_FunctionDef(self, node):
         for i, arg in enumerate(node.args.args + node.args.kwonlyargs +
