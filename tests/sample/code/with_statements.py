@@ -18,15 +18,14 @@ lock = threading.Lock()
 
 def outside_lock_context(key, value):
     with lock:
-        print(lock.locked())
         if key not in single_thread_dict:
             single_thread_dict[key] = value
+        return single_thread_dict[key]
 
 
 def inside_lock_context(key, value):
     inner_lock = threading.Lock()  # yes, this doesn't makes sense
     with inner_lock:
-        print(inner_lock.locked())
         if key not in single_thread_dict:
             single_thread_dict[key] = value
 
@@ -34,14 +33,15 @@ def inside_lock_context(key, value):
 def multiple_contexts_same_method():
     with lock:
         with open("input.txt") as read, open("output.txt", "w") as write:
-            print(lock.locked())
             content = read.read()
             write.write(content)
 
 
+pathlib_open = pathlib.Path("input.txt")
+
+
 def multiple_contexts_different_methods():
-    with lock, pathlib.Path("input.txt").open("r") as read, open(
-            "output.txt", "w") as write:
-        print(lock.locked())
+    with lock, pathlib_open.open("r") as read, open("output.txt",
+                                                    "w") as write:
         content = read.read()
         write.write(content)

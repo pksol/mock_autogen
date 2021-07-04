@@ -8,6 +8,9 @@ from tests.sample.code.comprehensions_and_loops import get_square_root_loop, \
     summarize_environ_values_loop, trimmed_strings_loop, \
     get_square_root_loop_external_variable
 from tests.sample.code.lambdas import simple_func_using_lambdas
+from tests.sample.code.with_statements import simple_anonymous_context, \
+    simple_context, outside_lock_context, inside_lock_context, \
+    multiple_contexts_same_method, multiple_contexts_different_methods
 
 
 @safe_travels("a dummy method that might fail")
@@ -204,6 +207,74 @@ class TestDependencyLister:
         ]
 
         deps_lister = DependencyLister(annotated_assignments).execute()
+        assert not deps_lister.warnings
+        assert expected_mocked_functions == list(
+            deps_lister.dependencies_found)
+
+    def test_execute_with_anonymous(self):
+        expected_mocked_functions = [
+            ('tests.sample.code.with_statements', 'open'),
+            ('tests.sample.code.with_statements', 'print')
+        ]
+
+        deps_lister = DependencyLister(simple_anonymous_context).execute()
+        assert not deps_lister.warnings
+        assert expected_mocked_functions == list(
+            deps_lister.dependencies_found)
+
+    def test_execute_with_named(self):
+        expected_mocked_functions = [
+            ('tests.sample.code.with_statements', 'open'),
+            ('tests.sample.code.with_statements', 'print')
+        ]
+
+        deps_lister = DependencyLister(simple_context).execute()
+        assert not deps_lister.warnings
+        assert expected_mocked_functions == list(
+            deps_lister.dependencies_found)
+
+    def test_execute_with_outside(self):
+        expected_mocked_functions = [
+            ('tests.sample.code.with_statements', 'lock'),
+            ('tests.sample.code.with_statements', 'single_thread_dict')
+        ]
+
+        deps_lister = DependencyLister(outside_lock_context).execute()
+        assert not deps_lister.warnings
+        assert expected_mocked_functions == list(
+            deps_lister.dependencies_found)
+
+    def test_execute_with_inside(self):
+        expected_mocked_functions = [
+            ('tests.sample.code.with_statements.threading', 'Lock'),
+            ('tests.sample.code.with_statements', 'single_thread_dict')
+        ]
+
+        deps_lister = DependencyLister(inside_lock_context).execute()
+        assert not deps_lister.warnings
+        assert expected_mocked_functions == list(
+            deps_lister.dependencies_found)
+
+    def test_execute_with_multiple_contexts_same_method(self):
+        expected_mocked_functions = [
+            ('tests.sample.code.with_statements', 'lock'),
+            ('tests.sample.code.with_statements', 'open')
+        ]
+
+        deps_lister = DependencyLister(multiple_contexts_same_method).execute()
+        assert not deps_lister.warnings
+        assert expected_mocked_functions == list(
+            deps_lister.dependencies_found)
+
+    def test_execute_with_multiple_contexts_different_methods(self):
+        expected_mocked_functions = [
+            ('tests.sample.code.with_statements', 'lock'),
+            ('tests.sample.code.with_statements.pathlib_open', 'open'),
+            ('tests.sample.code.with_statements', 'open')
+        ]
+
+        deps_lister = DependencyLister(
+            multiple_contexts_different_methods).execute()
         assert not deps_lister.warnings
         assert expected_mocked_functions == list(
             deps_lister.dependencies_found)

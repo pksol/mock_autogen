@@ -133,14 +133,17 @@ class DependencyLister(ast.NodeVisitor):
 
         return DependencyLister._filter_root_mocks(dependencies)
 
-    @safe_travels("convert a name call into a mock")
-    def visit_Name(self, node):
-        self.potential_dependencies.append([_stringify_node_path(node)])
-
     @safe_travels("convert a function call into a mock")
     def visit_Call(self, node):
         id_and_func_path = _stringify_node_path(node.func).split('.', 1)
         self.potential_dependencies.append(id_and_func_path)
+
+    @safe_travels("convert a name call into a mock")
+    def visit_Name(self, node):
+        if isinstance(node.ctx, ast.Store):
+            self.ignored_variables.add(_stringify_node_path(node))
+        elif isinstance(node.ctx, ast.Load):
+            self.potential_dependencies.append([_stringify_node_path(node)])
 
     @safe_travels("add internal import to known mappings")
     def visit_Import(self, node):

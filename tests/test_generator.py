@@ -12,6 +12,7 @@ from tests.sample.code.comprehensions_and_loops import get_square_root, \
     get_square_root_external_variable
 from tests.sample.code.same_method_name import get_username_and_password
 from tests.sample.code.subscripts import list_subscript_games
+import tests.sample.code.with_statements as with_statements
 
 MOCKED_MODULES_HEADER = "# mocked modules\n"
 MOCKED_MODULES = "mock_os = mocker.MagicMock(name='os')\n" \
@@ -28,6 +29,7 @@ MOCKED_MODULES = "mock_os = mocker.MagicMock(name='os')\n" \
                  "mocker.patch('tests.sample.code.tested_module.zipfile', " \
                  "new=mock_zipfile)\n"
 
+MOCKED_DEPENDENCIES_HEADER = "# mocked dependencies\n"
 MOCKED_FUNCTIONS_HEADER = "# mocked functions\n"
 MOCKED_FUNCTIONS = "mock_add = mocker.MagicMock(name='add')\n" \
                    "mocker.patch('tests.sample.code.tested_module.add', " \
@@ -547,7 +549,8 @@ def _extract_warnings_generated_mocks_and_generated_asserts(expected):
     for line in expected.splitlines():
         if line == MOCKED_WARNINGS_HEADER.rstrip():
             inside_warnings = True
-        if line == MOCKED_FUNCTIONS_HEADER.rstrip():
+        if line == MOCKED_FUNCTIONS_HEADER.rstrip(
+        ) or line == MOCKED_DEPENDENCIES_HEADER.rstrip():
             inside_warnings = False
             inside_mocks = True
         if line == PREPARE_ASSERTS_CALLS_HEADER.splitlines()[0]:
@@ -735,13 +738,65 @@ mock_autogen.generate_asserts(mock_external_items, name='mock_external_items')
     assert expected_asserts == generated_asserts
 
     # verify the validity of generated mocks code
-    # exec(generated)
     exec(generated +
          "\nmock_sqrt.side_effect = [-1]*len('not a list of numbers')"
          "\nmock_external_items.__iter__.return_value = [9, 16, 25, 36]")
 
     w_mock = get_square_root_external_variable()
     assert [-1] * 4 == w_mock  # we changed the number of items in the external
+
+
+def test_generate_mocks_lock_external_variable(mocker, capsys):
+    with_statements.single_thread_dict = {}
+    wo_mock = with_statements.outside_lock_context("some", "value")
+    assert "value" == wo_mock  # without mocks
+    wo_mock = with_statements.outside_lock_context("some", "other value")
+    assert "value" == wo_mock  # without mocks
+
+    expected = """# mocked dependencies
+mock_lock = mocker.MagicMock(name='lock')
+mocker.patch('tests.sample.code.with_statements.lock', new=mock_lock)
+mock_single_thread_dict = mocker.MagicMock(name='single_thread_dict')
+mocker.patch('tests.sample.code.with_statements.single_thread_dict', new=mock_single_thread_dict)
+# calls to generate_asserts, put this after the 'act'
+import mock_autogen
+mock_autogen.generate_asserts(mock_lock, name='mock_lock')
+mock_autogen.generate_asserts(mock_single_thread_dict, name='mock_single_thread_dict')
+"""
+
+    expected_warnings, expected_mocks, expected_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(expected)
+
+    generated = mock_autogen.generator.generate_mocks(
+        mock_autogen.generator.MockingFramework.PYTEST_MOCK,
+        with_statements.outside_lock_context)
+
+    generated_warnings, generated_mocks, generated_asserts = \
+        _extract_warnings_generated_mocks_and_generated_asserts(generated)
+
+    assert expected_warnings == generated_warnings
+    assert expected_mocks == generated_mocks
+    assert expected_asserts == generated_asserts
+
+    # verify the validity of generated mocks code
+    exec("\n".join(generated_mocks) +
+         "\nmock_single_thread_dict.__contains__.return_value = False"
+         "\nmock_single_thread_dict.__getitem__.return_value = 'strange'")
+
+    w_mock = with_statements.outside_lock_context("some", "third value")
+    assert 'strange' == w_mock
+
+    capsys.readouterr().out  # this clears the existing output
+    exec("\n".join(generated_asserts))
+    expected_mock_results = """mock_lock.__enter__.assert_called_once_with()
+mock_lock.__exit__.assert_called_once_with(None, None, None)
+
+mock_single_thread_dict.__contains__.assert_called_once_with('some')
+mock_single_thread_dict.__setitem__.assert_called_once_with('some', 'third value')
+mock_single_thread_dict.__getitem__.assert_called_once_with('some')
+
+"""
+    assert expected_mock_results == capsys.readouterr().out
 
 
 def test_generate_mocks_function_dict_comprehension(mocker):
