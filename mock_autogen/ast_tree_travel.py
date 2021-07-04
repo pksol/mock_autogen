@@ -135,8 +135,16 @@ class DependencyLister(ast.NodeVisitor):
 
     @safe_travels("convert a function call into a mock")
     def visit_Call(self, node):
-        id_and_func_path = _stringify_node_path(node.func).split('.', 1)
-        self.potential_dependencies.append(id_and_func_path)
+        try:
+            id_and_func_path = _stringify_node_path(node.func).split('.', 1)
+            self.potential_dependencies.append(id_and_func_path)
+        except CustomTypeError as complex_node_err:
+            # handle cases like: pathlib.Path("input.txt").open("r")
+            # we want to mock pathlib.Path and not 'open'
+            # if an inner call failed _stringify_node_path, then another
+            # visit_Call will happen with the inner method call which will pass
+            if not isinstance(complex_node_err.node, ast.Call):
+                raise complex_node_err
 
     @safe_travels("convert a name call into a mock")
     def visit_Name(self, node):
@@ -267,10 +275,13 @@ def _stringify_node_path(node):
     Can return something like: var_name.attr.inner_attr.
 
     Args:
-        node (ast.Name or ast.Attribute):
+        node (ast.Name, ast.Starred or ast.Attribute):
 
     Returns:
         str: the qualified path the node is pointing to.
+
+    Raises:
+        CustomTypeError: if there is a complex node which can't be stringified
     """
     if isinstance(node, ast.Name):
         stringify = node.id
@@ -279,5 +290,18 @@ def _stringify_node_path(node):
     elif isinstance(node, ast.Attribute):
         stringify = _stringify_node_path(node.value) + "." + node.attr
     else:
-        raise TypeError(f"Can't stringify node of type {type(node)}")
+        raise CustomTypeError(f"Can't stringify node of type {type(node)}",
+                              node=node)
     return stringify
+
+
+class CustomTypeError(TypeError):
+    """Allows us to add the problematic node which caused this exception
+
+    Args:
+        message: the exception's message
+        node: the problematic node
+    """
+    def __init__(self, message: str, node):
+        self.node = node
+        super().__init__(message)

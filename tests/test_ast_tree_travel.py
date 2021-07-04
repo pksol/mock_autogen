@@ -269,7 +269,7 @@ class TestDependencyLister:
     def test_execute_with_multiple_contexts_different_methods(self):
         expected_mocked_functions = [
             ('tests.sample.code.with_statements', 'lock'),
-            ('tests.sample.code.with_statements.pathlib_open', 'open'),
+            ('tests.sample.code.with_statements.pathlib', 'Path'),
             ('tests.sample.code.with_statements', 'open')
         ]
 

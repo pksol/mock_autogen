@@ -37,11 +37,8 @@ def multiple_contexts_same_method():
             write.write(content)
 
 
-pathlib_open = pathlib.Path("input.txt")
-
-
 def multiple_contexts_different_methods():
-    with lock, pathlib_open.open("r") as read, open("output.txt",
-                                                    "w") as write:
+    with lock, pathlib.Path("input.txt").open("r") as read, open(
+            "output.txt", "w") as write:
         content = read.read()
         write.write(content)
