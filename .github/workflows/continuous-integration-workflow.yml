@@ -19,6 +19,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2.1.0
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
       - name: Run pytest
         uses: fylein/python-pytest-github-action@v2
         with:
@@ -31,6 +35,7 @@ jobs:
           file: ./coverage.xml
           flags: unittests
           fail_ci_if_error: true
+          verbose: true
 
   tests-os:
     name: pytest tests across multiple OS and python versions
