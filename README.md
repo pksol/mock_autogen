@@ -157,7 +157,9 @@ mock_autogen.generate_asserts(mock_obj)
 Take the generated code and paste it at the 'Assert' section. 
 
 #### Generating the 'Arrange' and 'Assert' sections in one call
-You can make the `` call create the `generate_asserts` code for you:
+You can make the `generate_uut_mocks_with_asserts` call create the 
+`generate_asserts` code for you (instead of having to call 
+`generate_uut_mocks`):
 ```python
 import mock_autogen
 mock_autogen.generate_uut_mocks_with_asserts(function_under_test)
