@@ -21,6 +21,8 @@ jobs:
           password: ${{ secrets.test_pypi_password }}
           repository_url: https://test.pypi.org/legacy/
         continue-on-error: true
+      - name: Sleep to allow pypi index to update with the new version
+        run: sleep 5m
       - name: Cleanup
         run: |
           rm -r mock_autogen
@@ -49,6 +51,8 @@ jobs:
         uses: pypa/gh-action-pypi-publish@v1.1.0
         with:
           password: ${{ secrets.pypi_password }}
+      - name: Sleep to allow pypi index to update with the new version
+        run: sleep 5m
       - name: Cleanup
         run: |
           rm -r mock_autogen
