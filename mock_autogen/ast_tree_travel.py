@@ -37,7 +37,8 @@ def safe_travels(action: str, call_generic_visit: bool = True):
                     node_repr = ast.get_source_segment(self.source_code, node)
                 node_repr = "\n#  ".join(node_repr.split("\n"))
                 warning = f"# could not {action} on node:\n" \
-                          f"#  {node_repr}"
+                          f"#  {node_repr}\n" \
+                          f"#  {str(e)}"
                 logger.warning(warning, exc_info=True)
                 self.warnings.append(warning)
             if call_generic_visit:

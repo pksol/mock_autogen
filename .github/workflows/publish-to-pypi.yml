@@ -21,6 +21,8 @@ jobs:
           password: ${{ secrets.test_pypi_password }}
           repository_url: https://test.pypi.org/legacy/
         continue-on-error: true
+      - name: Sleep to allow pypi index to update with the new version
+        run: sleep 5m
       - name: Cleanup
         run: |
           rm -r mock_autogen
@@ -30,7 +32,7 @@ jobs:
           python -m pip install pip==21.0.1
           pip install -r test-requirements.txt
           pip install -i https://test.pypi.org/simple/ mock-generator
-          python -m pytest -vvv -k test_pytest_mocker.py
+          python -m pytest -vvv -k "test_pytest_mocker or test_public_api or test_safe_travels_on_func_failure"
 
   build-and-publish-production:
     name: Build and publish python distribution to PyPI
@@ -49,6 +51,8 @@ jobs:
         uses: pypa/gh-action-pypi-publish@v1.1.0
         with:
           password: ${{ secrets.pypi_password }}
+      - name: Sleep to allow pypi index to update with the new version
+        run: sleep 5m
       - name: Cleanup
         run: |
           rm -r mock_autogen
@@ -58,4 +62,4 @@ jobs:
           python -m pip install pip==21.0.1
           pip install -r test-requirements.txt
           pip install mock-generator
-          python -m pytest -vvv -k test_pytest_mocker.py
+          python -m pytest -vvv -k "test_pytest_mocker or test_public_api or test_safe_travels_on_func_failure"
