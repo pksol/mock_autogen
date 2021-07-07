@@ -63,11 +63,15 @@ def test_safe_travels_on_func_failure(mocker):
         mock_get_source_segment.assert_called_once_with(
             'my = python.code', sentinel.node)
         warning = '# could not a dummy method that might fail on node:\n' \
-                  '#  code_actual'
+                  '#  code_actual\n' \
+                  "#  '_SentinelObject' object has no attribute " \
+                  "'made_up_function'"
     else:
         mock_get_source_segment.assert_not_called()
         warning = '# could not a dummy method that might fail on node:\n' \
-                  '#  code_dump'
+                  '#  code_dump\n' \
+                  "#  '_SentinelObject' object has no attribute " \
+                  "'made_up_function'"
     mock_warning.assert_called_once_with(warning, exc_info=True)
     assert warning in self.warnings
 
@@ -112,12 +116,16 @@ def test_safe_travels_stop_there_on_func_failure(mocker):
             'my = python.code', sentinel.node)
         warning = "# could not a dummy method that might fail, " \
                   "but won't proceed afterwards on node:\n" \
-                  '#  code_actual'
+                  '#  code_actual\n' \
+                  "#  '_SentinelObject' object has no attribute " \
+                  "'made_up_function'"
     else:
         mock_get_source_segment.assert_not_called()
         warning = "# could not a dummy method that might fail, " \
                   "but won't proceed afterwards on node:\n" \
-                  '#  code_dump'
+                  '#  code_dump\n' \
+                  "#  '_SentinelObject' object has no attribute " \
+                  "'made_up_function'"
     mock_warning.assert_called_once_with(warning, exc_info=True)
     assert warning in self.warnings
 

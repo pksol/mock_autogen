@@ -938,12 +938,15 @@ mock_autogen.generate_asserts(mock_get_2, name='mock_get_2')
 
 
 def test_generate_mocks_method_inner_calls(mocker):
+    bin_op_class_name = 'ast.BinOp' if sys.version_info >= (
+        3, 9) else '_ast.BinOp'
     global_before = tests.sample.code.tested_module.global_counter
     prop_before = tests.sample.code.tested_module.FirstClass.prop
     first = tests.sample.code.tested_module.FirstClass('20')
-    expected = """# warnings
+    expected = f"""# warnings
 # could not convert a function call into a mock on node:
 #  (suffix.upper() + suffix).encode('ascii')
+#  Can't stringify node of type <class '{bin_op_class_name}'>
 # mocked dependencies
 mock_randint = mocker.MagicMock(name='randint')
 mocker.patch('tests.sample.code.tested_module.random.randint', new=mock_randint)
