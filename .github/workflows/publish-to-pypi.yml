@@ -32,7 +32,7 @@ jobs:
           python -m pip install pip==21.0.1
           pip install -r test-requirements.txt
           pip install -i https://test.pypi.org/simple/ mock-generator
-          python -m pytest -vvv -k test_pytest_mocker.py
+          python -m pytest -vvv -k "test_pytest_mocker or test_public_api or test_safe_travels_on_func_failure"
 
   build-and-publish-production:
     name: Build and publish python distribution to PyPI
@@ -62,4 +62,4 @@ jobs:
           python -m pip install pip==21.0.1
           pip install -r test-requirements.txt
           pip install mock-generator
-          python -m pytest -vvv -k test_pytest_mocker.py
+          python -m pytest -vvv -k "test_pytest_mocker or test_public_api or test_safe_travels_on_func_failure"
