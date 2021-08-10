@@ -6,7 +6,9 @@
 ![](https://img.shields.io/powershellgallery/p/DNS.1.1.1.1)
 ![](https://img.shields.io/pypi/l/mock-generator.svg)
 
-A tool to generate the basic mocks and asserts for faster unit testing. 
+A tool to generate the basic mocks and asserts for faster unit testing.
+
+## 🎉 New: you can now use [pytest-mock-generator](https://pypi.org/project/pytest-mock-generator), for more fluid pytest development. See documentation later in [this doc](#using-pytest-mock-generator).
 
 ## Introduction
 A typical unit test looks like this (AAA pattern):
@@ -142,6 +144,30 @@ def test_process_and_zip(mocker):
 Can you imagine the time it would have taken you to code this on your own?
 
 ### What's Next
+#### Using pytest-mock-generator
+You can now use [pytest-mock-generator](https://pypi.org/project/pytest-mock-generator)
+to generate mocks:
+
+```bash
+pip install pytest-mock-generator
+```
+Then use <b>mg fixture</b> in your tests, instead of having to <i>import mock_autogen</i>,
+like so:
+
+```python
+from tests.sample.code.tested_module import process_and_zip
+
+def test_process_and_zip(mocker, mg):
+    # Arrange: todo 
+    # replace with the output of the below command   
+    mg.generate_uut_mocks(process_and_zip)
+    
+    # Act: invoking the tested code
+    process_and_zip('/path/to.zip', 'in_zip.txt', 'foo bar')
+    
+    # Assert: todo
+```
+
 #### Asserting Existing Mocks
 At times, you may be editing a test code already containing mocks, or
 you choose to write the mocks yourself, to gain some extra control.
