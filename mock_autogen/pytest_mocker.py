@@ -21,6 +21,7 @@ class PytestMocker:
             module. For anything else, would be guessed to match the argument
             name sent to the method and finally defaulted to 'arg'
     """
+
     def __init__(self, mocked, name=''):
         self.mocked = mocked
         self.name = name

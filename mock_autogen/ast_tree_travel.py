@@ -26,7 +26,9 @@ def safe_travels(action: str, call_generic_visit: bool = True):
     Returns:
         callable: the decorated method
     """
+
     def inner_decorator(method):
+
         @functools.wraps(method)
         def safe_visit(self, node, *args, **kwargs):
             try:
@@ -68,6 +70,7 @@ class DependencyLister(ast.NodeVisitor):
     Args:
         mocked: a callable method or function
     """
+
     def __init__(self, mocked: Callable):
         self.mocked = mocked
         self.outer_module_name = inspect.getmodule(mocked).__name__
@@ -303,6 +306,7 @@ class CustomTypeError(TypeError):
         message: the exception's message
         node: the problematic node
     """
+
     def __init__(self, message: str, node):
         self.node = node
         super().__init__(message)

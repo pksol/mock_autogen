@@ -18,6 +18,7 @@ def copy_result_to_clipboard(func):
     Returns:
         callable: the decorated function whose output would go to the clipboard
     """
+
     @functools.wraps(func)
     def to_clipboard(*args, **kwargs):
         result = func(*args, **kwargs)
@@ -41,6 +42,7 @@ def print_result(func):
     Returns:
         callable: the decorated function whose output would go to the console
     """
+
     @functools.wraps(func)
     def to_console(*args, **kwargs):
         result = func(*args, **kwargs)
