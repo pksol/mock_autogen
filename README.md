@@ -203,6 +203,31 @@ PytestMocker(a_module_or_a_class_you_test_and_want_to_mock_its_dependencies).moc
 `PytestMocker` class has many options to produce different kind of mocks.
 See its documentation for further details.
 
+## Troubleshooting
+### No output is printed to the console when running Pytest
+Be sure to run Pytest with appropriate flags to print the output: `pytest -rA`.
+
+### No output is copied to the clipboard
+Mock Generator uses [pyperclip](https://github.com/asweigart/pyperclip) for clipboard 
+manipulations, look for errors / warnings printed in the console, similar to this one: 
+```commandline
+WARNING mock_autogen.utils:utils.py:28 
+Could not copy func results to clipboard Traceback (most recent call last): 
+    File "/home/username/Documents/code/test_mock_gen/.envtest/lib/python3.6/site-packages/mock_autogen/utils.py", line 25, in to_clipboard 
+        pyperclip.copy(result) 
+    File "/home/username/Documents/code/test_mock_gen/.envtest/lib/python3.6/site-packages/pyperclip/__init__.py", line 659, in lazy_load_stub_copy 
+        return copy(text) 
+    File "/home/username/Documents/code/test_mock_gen/.envtest/lib/python3.6/site-packages/pyperclip/__init__.py", line 336, in __call__
+        raise PyperclipException(EXCEPT_MSG) pyperclip.PyperclipException: 
+        
+    Pyperclip could not find a copy/paste mechanism for your system. 
+    For more information, please visit https://pyperclip.readthedocs.io/en/latest/index.html#not-implemented-error
+```
+
+It's possible that your system lacks some dependency, visit 
+https://pyperclip.readthedocs.io/en/latest/index.html#not-implemented-error for 
+additional troubleshooting steps.
+
 ## Wrapping up
 I hope that you were convinced that this tool can save you a lot of time. 
 

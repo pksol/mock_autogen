@@ -1468,40 +1468,53 @@ def test_generate_asserts_invalid_object():
 
 def test__single_call_to_generate_asserts():
     assert "mock_autogen.generate_asserts(mock_name, name='mock_name')\n" == \
-           mock_autogen.generator._single_call_to_generate_asserts("mock_name")
+           mock_autogen.generator._single_call_to_generate_asserts("mock_name", "mock_autogen")
+
+
+def test__single_call_to_generate_asserts_with_another_alias():
+    assert "mg.generate_asserts(mock_name, name='mock_name')\n" == \
+           mock_autogen.generator._single_call_to_generate_asserts("mock_name", "mg")
 
 
 @pytest.mark.parametrize('prepare_asserts_calls', [True, False])
+@pytest.mark.parametrize('include_mock_autogen_import', [True, False])
+@pytest.mark.parametrize('mock_autogen_alias', ["mock_autogen", "mg"])
 def test__pytest_mock_dependencies_generate_no_functions(
-        prepare_asserts_calls):
+        prepare_asserts_calls, include_mock_autogen_import, mock_autogen_alias):
     generated = mock_autogen.generator._pytest_mock_dependencies_generate(
-        set(), prepare_asserts_calls)
+        set(), prepare_asserts_calls, include_mock_autogen_import, mock_autogen_alias)
 
     assert "" == generated
 
 
 @pytest.mark.parametrize('prepare_asserts_calls', [True, False])
+@pytest.mark.parametrize('include_mock_autogen_import', [True, False])
+@pytest.mark.parametrize('mock_autogen_alias', ["mock_autogen", "mg"])
 def test__pytest_mock_dependencies_generate_one_function(
-        prepare_asserts_calls):
+        prepare_asserts_calls, include_mock_autogen_import, mock_autogen_alias):
     expected = """# mocked dependencies
 mock_first_function = mocker.MagicMock(name='first_function')
 mocker.patch('one.object.first_function', new=mock_first_function)
 """
     if prepare_asserts_calls:
-        expected += """# calls to generate_asserts, put this after the 'act'
-import mock_autogen
-mock_autogen.generate_asserts(mock_first_function, name='mock_first_function')
-"""
+        expected += "# calls to generate_asserts, put this after the 'act'\n"
+        if include_mock_autogen_import:
+            expected += f"import {mock_autogen_alias}\n"
+        expected += f"{mock_autogen_alias}.generate_asserts" \
+                    f"(mock_first_function, name='mock_first_function')\n"
 
     generated = mock_autogen.generator._pytest_mock_dependencies_generate(
-        [('one.object', 'first_function')], prepare_asserts_calls)
+        [('one.object', 'first_function')], prepare_asserts_calls,
+        include_mock_autogen_import, mock_autogen_alias)
 
     assert expected == generated
 
 
 @pytest.mark.parametrize('prepare_asserts_calls', [True, False])
+@pytest.mark.parametrize('include_mock_autogen_import', [True, False])
+@pytest.mark.parametrize('mock_autogen_alias', ["mock_autogen", "mg"])
 def test__pytest_mock_dependencies_generate_two_functions(
-        prepare_asserts_calls):
+        prepare_asserts_calls, include_mock_autogen_import, mock_autogen_alias):
     expected = """# mocked dependencies
 mock_first_function = mocker.MagicMock(name='first_function')
 mocker.patch('one.object.first_function', new=mock_first_function)
@@ -1509,22 +1522,27 @@ mock_second_function = mocker.MagicMock(name='second_function')
 mocker.patch('second.object.second_function', new=mock_second_function)
 """
     if prepare_asserts_calls:
-        expected += """# calls to generate_asserts, put this after the 'act'
-import mock_autogen
-mock_autogen.generate_asserts(mock_first_function, name='mock_first_function')
-mock_autogen.generate_asserts(mock_second_function, name='mock_second_function')
-"""
+        expected += "# calls to generate_asserts, put this after the 'act'\n"
+        if include_mock_autogen_import:
+            expected += f"import {mock_autogen_alias}\n"
+        expected += f"{mock_autogen_alias}.generate_asserts" \
+                    f"(mock_first_function, name='mock_first_function')\n"
+        expected += f"{mock_autogen_alias}.generate_asserts" \
+                    f"(mock_second_function, name='mock_second_function')\n"
 
     generated = mock_autogen.generator._pytest_mock_dependencies_generate(
         [('one.object', 'first_function'),
-         ('second.object', 'second_function')], prepare_asserts_calls)
+         ('second.object', 'second_function')], prepare_asserts_calls,
+        include_mock_autogen_import, mock_autogen_alias)
 
     assert expected == generated
 
 
 @pytest.mark.parametrize('prepare_asserts_calls', [True, False])
+@pytest.mark.parametrize('include_mock_autogen_import', [True, False])
+@pytest.mark.parametrize('mock_autogen_alias', ["mock_autogen", "mg"])
 def test__pytest_mock_dependencies_generate_two_functions_duplicate(
-        prepare_asserts_calls):
+        prepare_asserts_calls, include_mock_autogen_import, mock_autogen_alias):
     expected = """# mocked dependencies
 mock_first_function = mocker.MagicMock(name='first_function')
 mocker.patch('one.object.first_function', new=mock_first_function)
@@ -1532,22 +1550,27 @@ mock_first_function_2 = mocker.MagicMock(name='first_function_2')
 mocker.patch('second.object.first_function', new=mock_first_function_2)
 """
     if prepare_asserts_calls:
-        expected += """# calls to generate_asserts, put this after the 'act'
-import mock_autogen
-mock_autogen.generate_asserts(mock_first_function, name='mock_first_function')
-mock_autogen.generate_asserts(mock_first_function_2, name='mock_first_function_2')
-"""
+        expected += "# calls to generate_asserts, put this after the 'act'\n"
+        if include_mock_autogen_import:
+            expected += f"import {mock_autogen_alias}\n"
+        expected += f"{mock_autogen_alias}.generate_asserts" \
+                    f"(mock_first_function, name='mock_first_function')\n"
+        expected += f"{mock_autogen_alias}.generate_asserts" \
+                    f"(mock_first_function_2, name='mock_first_function_2')\n"
 
     generated = mock_autogen.generator._pytest_mock_dependencies_generate(
         [('one.object', 'first_function'),
-         ('second.object', 'first_function')], prepare_asserts_calls)
+         ('second.object', 'first_function')], prepare_asserts_calls,
+        include_mock_autogen_import, mock_autogen_alias)
 
     assert expected == generated
 
 
 @pytest.mark.parametrize('prepare_asserts_calls', [True, False])
+@pytest.mark.parametrize('include_mock_autogen_import', [True, False])
+@pytest.mark.parametrize('mock_autogen_alias', ["mock_autogen", "mg"])
 def test__pytest_mock_dependencies_generate_four_functions_duplicate(
-        prepare_asserts_calls):
+        prepare_asserts_calls, include_mock_autogen_import, mock_autogen_alias):
     expected = """# mocked dependencies
 mock_first_function = mocker.MagicMock(name='first_function')
 mocker.patch('one.object.first_function', new=mock_first_function)
@@ -1559,18 +1582,22 @@ mock_first_function_3 = mocker.MagicMock(name='first_function_3')
 mocker.patch('fourth.first_function', new=mock_first_function_3)
 """
     if prepare_asserts_calls:
-        expected += """# calls to generate_asserts, put this after the 'act'
-import mock_autogen
-mock_autogen.generate_asserts(mock_first_function, name='mock_first_function')
-mock_autogen.generate_asserts(mock_second_function, name='mock_second_function')
-mock_autogen.generate_asserts(mock_first_function_2, name='mock_first_function_2')
-mock_autogen.generate_asserts(mock_first_function_3, name='mock_first_function_3')
-"""
+        expected += "# calls to generate_asserts, put this after the 'act'\n"
+        if include_mock_autogen_import:
+            expected += f"import {mock_autogen_alias}\n"
+        expected += f"{mock_autogen_alias}.generate_asserts" \
+                    f"(mock_first_function, name='mock_first_function')\n"
+        expected += f"{mock_autogen_alias}.generate_asserts" \
+                    f"(mock_second_function, name='mock_second_function')\n"
+        expected += f"{mock_autogen_alias}.generate_asserts" \
+                    f"(mock_first_function_2, name='mock_first_function_2')\n"
+        expected += f"{mock_autogen_alias}.generate_asserts" \
+                    f"(mock_first_function_3, name='mock_first_function_3')\n"
 
     generated = mock_autogen.generator._pytest_mock_dependencies_generate(
         [('one.object', 'first_function'),
          ('second.object', 'second_function'),
          ('third.sub.module', 'first_function'), ('fourth', 'first_function')],
-        prepare_asserts_calls)
+        prepare_asserts_calls, include_mock_autogen_import, mock_autogen_alias)
 
     assert expected == generated
