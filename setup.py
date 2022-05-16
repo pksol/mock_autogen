@@ -8,7 +8,7 @@ TESTS_REQUIRE = (HERE / "test-requirements.txt").read_text().splitlines()[1:]
 
 # This call to setup() does all the work
 setup(name="mock-generator",
-      version="2.3.2",
+      version="2.4.0",
       description="Generate python mocks and assertions quickly",
       long_description=README,
       long_description_content_type="text/markdown",

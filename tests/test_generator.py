@@ -1243,6 +1243,19 @@ def test_generate_asserts_add_multiple_calls(mock_functions_only_collection):
     exec(generated)  # verify the validity of assertions
 
 
+def test_generate_asserts_spy_object(mocker):
+    my_spy = mocker.spy(tests.sample.code.tested_module, "add")
+
+    assert 5 == tests.sample.code.tested_module.add(2, 3)
+    assert "34" == tests.sample.code.tested_module.add("3", "4")
+
+    generated = mock_autogen.generator.generate_asserts(my_spy)
+    assert 'from mock import call\n\n' \
+           'assert 2 == my_spy.call_count\n' \
+           "my_spy.assert_has_calls(calls=[call(2, 3),call('3', '4'),])\n" == generated
+    exec(generated)  # verify the validity of assertions
+
+
 def test_generate_asserts_context_manager(mock_modules_only_collection):
     tests.sample.code.tested_module.process_and_zip('/path/to.zip',
                                                     'in_zip.txt', 'foo bar')
