@@ -314,13 +314,11 @@ def generate_asserts(mock, name=''):
         str: the asserts matching to the call list of the sent mock
     """
     name = name if name else _guess_var_name(mock)
-    if not isinstance(mock, python_mock.MagicMock) and \
-            not isinstance(mock, unittest.mock.MagicMock) and \
-            not isinstance(mock, python_mock.Mock) and \
-            not isinstance(mock, unittest.mock.Mock):
-        raise TypeError("Unsupported mocking object: {0}. "
-                        "You are welcome to add code to support it :)".format(
-                            type(mock)))
+    has_attr = hasattr(mock, 'call_args_list') and hasattr(mock, 'mock_calls')
+    if not has_attr:
+        raise TypeError(
+            f"Unsupported object: {type(mock)}. Please pass a mock which "
+            f"has `call_args_list` and `mock_calls` attributes.")
 
     generated_asserts = ""
     if mock.call_args_list:
