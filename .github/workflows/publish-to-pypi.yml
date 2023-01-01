@@ -16,7 +16,7 @@ jobs:
       - name: Create distribution
         run: python setup.py sdist bdist_wheel
       - name: Publish distribution to Test PyPI
-        uses: pypa/gh-action-pypi-publish@v1.5.1
+        uses: pypa/gh-action-pypi-publish@v1.6.4
         with:
           password: ${{ secrets.test_pypi_password }}
           repository_url: https://test.pypi.org/legacy/
@@ -48,7 +48,7 @@ jobs:
       - name: Create distribution
         run: python setup.py sdist bdist_wheel
       - name: Publish distribution to PyPI
-        uses: pypa/gh-action-pypi-publish@v1.5.1
+        uses: pypa/gh-action-pypi-publish@v1.6.4
         with:
           password: ${{ secrets.pypi_password }}
       - name: Sleep to allow pypi index to update with the new version
