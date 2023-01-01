@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3.0.2
+        uses: actions/checkout@v3.2.0
       - name: Run YAPF
         uses: AlexanderMelde/yapf-action@v1.0
         with:
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3.0.2
+        uses: actions/checkout@v3.2.0
       - name: Set up Python 3.8
         uses: actions/setup-python@v4
         with:
@@ -48,7 +48,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3.0.2
+        uses: actions/checkout@v3.2.0
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
